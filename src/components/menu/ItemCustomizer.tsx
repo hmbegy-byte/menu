@@ -19,7 +19,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     for (const group of item.groups) {
-      initial[group.id] = group.multiple ? [] : [group.options[0].id];
+      initial[group.id] = group.multiple ? [] : [group.options[0]!.id];
     }
     return initial;
   });
@@ -31,7 +31,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
     };
   }, []);
 
-  const group = item.groups[step];
+  const group = item.groups[step]!;
   const isLast = step === item.groups.length - 1;
 
   const { unitPrice, labels } = useMemo(() => {
