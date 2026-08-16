@@ -16,10 +16,10 @@ export const Route = createFileRoute("/")({
         content:
           "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
       },
-      { property: "og:title", content: "موج البحر — قائمة المأكولات البحرية" },
+      { property: "og:title", content: "موج البحر — قائمة المأكولات البحرية الطازجة" },
       {
         property: "og:description",
-        content: "قائمة رقمية سريعة: خصّص طبقك البحري وأرسل الطلب على واتساب.",
+        content: "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
       },
       { property: "og:type", content: "restaurant.menu" },
       { name: "twitter:card", content: "summary_large_image" },
