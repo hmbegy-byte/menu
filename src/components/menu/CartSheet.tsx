@@ -123,7 +123,7 @@ export function CartSheet({ lines, onClose, onRemove }: Props) {
             target="_blank"
             rel="noreferrer"
             aria-disabled={lines.length === 0}
-            className={`gradient-primary mt-3 flex h-13 items-center justify-center rounded-2xl py-3.5 text-sm font-extrabold text-primary-foreground shadow-glow transition-transform active:scale-[0.98] ${
+            className={`gradient-primary mt-3 flex items-center justify-center rounded-2xl py-3.5 text-sm font-extrabold text-primary-foreground shadow-glow transition-transform active:scale-[0.98] ${
               lines.length === 0 ? "pointer-events-none opacity-40" : ""
             }`}
           >
