@@ -8,22 +8,64 @@ import { ItemCustomizer } from "@/components/menu/ItemCustomizer";
 import { CartSheet, type CartLine } from "@/components/menu/CartSheet";
 import { categories, formatPrice, menuItems, type MenuItem } from "@/lib/menu-data";
 
+const SITE_URL = "https://menu-magic-uae.lovable.app";
+const PREVIEW_IMAGE =
+  "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cc08ae2de1790a8f9a9d4f12507e8a51/id-preview-507c86b9--a142f4c6-6a47-445f-8e41-ad3b03275a38.lovable.app-1786915405433.png";
+const TITLE = "موج البحر — قائمة المأكولات البحرية الطازجة";
+const DESCRIPTION =
+  "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.";
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      {
-        name: "description",
-        content:
-          "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
-      },
-      { property: "og:title", content: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      {
-        property: "og:description",
-        content: "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
-      },
+      { title: TITLE },
+      { name: "description", content: DESCRIPTION },
+      { property: "og:title", content: TITLE },
+      { property: "og:description", content: DESCRIPTION },
       { property: "og:type", content: "restaurant.menu" },
+      { property: "og:url", content: `${SITE_URL}/` },
+      { property: "og:image", content: PREVIEW_IMAGE },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: TITLE },
+      { name: "twitter:description", content: DESCRIPTION },
+      { name: "twitter:image", content: PREVIEW_IMAGE },
+    ],
+    links: [{ rel: "canonical", href: `${SITE_URL}/` }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Restaurant",
+          name: "موج البحر",
+          description: DESCRIPTION,
+          url: `${SITE_URL}/`,
+          servesCuisine: "مأكولات بحرية",
+          priceRange: "$$",
+          image: PREVIEW_IMAGE,
+          hasMenu: {
+            "@type": "Menu",
+            name: "قائمة موج البحر",
+            inLanguage: "ar",
+            hasMenuSection: categories.map((category) => ({
+              "@type": "MenuSection",
+              name: category.name,
+              hasMenuItem: menuItems
+                .filter((item) => item.category === category.id)
+                .map((item) => ({
+                  "@type": "MenuItem",
+                  name: item.name,
+                  description: item.description,
+                  offers: {
+                    "@type": "Offer",
+                    price: item.price.toFixed(2),
+                    priceCurrency: "AED",
+                  },
+                })),
+            })),
+          },
+        }),
+      },
     ],
   }),
   component: MenuPage,
