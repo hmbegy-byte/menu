@@ -100,7 +100,12 @@ function MenuPage() {
           <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[11px] font-bold text-primary-glow">
             <Flame className="h-3 w-3" /> طازج من المزاد اليوم
           </span>
-          <h1 className="mt-2 text-2xl font-extrabold">موج البحر</h1>
+          <h1 className="mt-2 text-2xl font-extrabold">
+            موج البحر
+            <span className="block text-sm font-bold text-muted-foreground">
+              قائمة المأكولات البحرية الطازجة
+            </span>
+          </h1>
           <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
             <MapPin className="h-3 w-3 shrink-0" /> طاولة ١٢ • مشويات وبحريات
           </p>
@@ -112,7 +117,7 @@ function MenuPage() {
       <CategoryPills active={activeCategory} onChange={setActiveCategory} />
 
       <main key={activeCategory} className="animate-rise-in space-y-3 px-4 pt-4">
-        <h2 className="sr-only">
+        <h2 className="text-lg font-extrabold">
           {categories.find((c) => c.id === activeCategory)?.name}
         </h2>
         {visibleItems.map((item) => (
