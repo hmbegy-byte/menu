@@ -65,6 +65,8 @@ function MenuPage() {
         </div>
       </header>
 
+      <OffersSlideshow />
+
       <CategoryPills active={activeCategory} onChange={setActiveCategory} />
 
       <main key={activeCategory} className="animate-rise-in space-y-3 px-4 pt-4">
