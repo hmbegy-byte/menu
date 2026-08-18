@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Flame, MapPin, Plus, ShoppingBag } from "lucide-react";
 import heroImage from "@/assets/sea-hero.jpg";
 import { CategoryPills } from "@/components/menu/CategoryPills";
+import { OffersSlideshow } from "@/components/menu/OffersSlideshow";
 import { ItemCustomizer } from "@/components/menu/ItemCustomizer";
 import { CartSheet, type CartLine } from "@/components/menu/CartSheet";
 import { categories, formatPrice, menuItems, type MenuItem } from "@/lib/menu-data";
@@ -63,6 +64,8 @@ function MenuPage() {
           </p>
         </div>
       </header>
+
+      <OffersSlideshow />
 
       <CategoryPills active={activeCategory} onChange={setActiveCategory} />
 
