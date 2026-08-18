@@ -77,19 +77,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      {
-        name: "description",
-        content: "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
-      },
-      { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "موج البحر" },
       { name: "twitter:card", content: "summary_large_image" },
-      { property: "og:title", content: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      { name: "twitter:title", content: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      { property: "og:description", content: "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب." },
-      { name: "twitter:description", content: "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cc08ae2de1790a8f9a9d4f12507e8a51/id-preview-507c86b9--a142f4c6-6a47-445f-8e41-ad3b03275a38.lovable.app-1786915405433.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/cc08ae2de1790a8f9a9d4f12507e8a51/id-preview-507c86b9--a142f4c6-6a47-445f-8e41-ad3b03275a38.lovable.app-1786915405433.png" },
     ],
     links: [
       {
