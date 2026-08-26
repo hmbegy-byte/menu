@@ -45,33 +45,57 @@
 
 :root {
   --radius: 1.125rem;
-  --background: oklch(0.19 0.037 234);
-  --foreground: oklch(0.975 0.008 220);
-  --surface: oklch(0.245 0.041 235);
-  --surface-strong: oklch(0.295 0.045 236);
-  --card: oklch(0.245 0.041 235);
-  --card-foreground: oklch(0.975 0.008 220);
-  --popover: oklch(0.225 0.04 235);
-  --popover-foreground: oklch(0.975 0.008 220);
-  --primary: oklch(0.68 0.19 34);
-  --primary-foreground: oklch(0.17 0.03 234);
-  --primary-glow: oklch(0.79 0.15 62);
-  --secondary: oklch(0.32 0.05 200);
-  --secondary-foreground: oklch(0.975 0.008 220);
-  --muted: oklch(0.28 0.038 234);
-  --muted-foreground: oklch(0.74 0.024 226);
-  --accent: oklch(0.83 0.13 176);
-  --accent-foreground: oklch(0.19 0.037 234);
+  --background: oklch(0.975 0.008 285);
+  --foreground: oklch(0.25 0.035 285);
+  --surface: oklch(1 0 0);
+  --surface-strong: oklch(0.95 0.018 285);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.25 0.035 285);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.25 0.035 285);
+  --primary: oklch(0.52 0.24 292);
+  --primary-foreground: oklch(0.99 0.005 285);
+  --primary-glow: oklch(0.66 0.2 300);
+  --secondary: oklch(0.93 0.03 285);
+  --secondary-foreground: oklch(0.31 0.08 290);
+  --muted: oklch(0.94 0.015 285);
+  --muted-foreground: oklch(0.48 0.035 285);
+  --accent: oklch(0.88 0.08 295);
+  --accent-foreground: oklch(0.3 0.09 290);
   --destructive: oklch(0.62 0.21 22);
   --destructive-foreground: oklch(0.98 0.005 220);
-  --border: oklch(0.36 0.04 232);
-  --input: oklch(0.33 0.04 232);
-  --ring: oklch(0.68 0.19 34);
+  --border: oklch(0.88 0.025 285);
+  --input: oklch(0.88 0.025 285);
+  --ring: oklch(0.52 0.24 292);
 
   --gradient-primary: linear-gradient(135deg, var(--primary), var(--primary-glow));
-  --gradient-deep: linear-gradient(180deg, oklch(0.19 0.037 234 / 0), oklch(0.17 0.035 234 / 0.96));
-  --shadow-float: 0 18px 44px -18px oklch(0.1 0.03 234 / 0.9);
+  --gradient-deep: linear-gradient(180deg, transparent, oklch(0.2 0.04 285 / 0.9));
+  --shadow-float: 0 18px 44px -18px oklch(0.28 0.08 290 / 0.3);
   --shadow-glow: 0 12px 32px -12px color-mix(in oklab, var(--primary) 55%, transparent);
+}
+
+.dark {
+  --background: oklch(0.16 0.025 285);
+  --foreground: oklch(0.96 0.012 285);
+  --surface: oklch(0.22 0.035 285);
+  --surface-strong: oklch(0.27 0.045 285);
+  --card: oklch(0.21 0.032 285);
+  --card-foreground: oklch(0.96 0.012 285);
+  --popover: oklch(0.2 0.032 285);
+  --popover-foreground: oklch(0.96 0.012 285);
+  --primary: oklch(0.72 0.17 300);
+  --primary-foreground: oklch(0.18 0.035 285);
+  --primary-glow: oklch(0.79 0.13 305);
+  --secondary: oklch(0.29 0.05 290);
+  --secondary-foreground: oklch(0.96 0.012 285);
+  --muted: oklch(0.27 0.035 285);
+  --muted-foreground: oklch(0.73 0.03 285);
+  --accent: oklch(0.35 0.08 295);
+  --accent-foreground: oklch(0.96 0.012 285);
+  --border: oklch(0.34 0.045 285);
+  --input: oklch(0.34 0.045 285);
+  --ring: oklch(0.72 0.17 300);
+  --shadow-float: 0 18px 44px -18px oklch(0.05 0.02 285 / 0.9);
 }
 
 @layer base {
@@ -96,6 +120,156 @@
     font-family: var(--font-display);
     font-weight: 800;
     letter-spacing: -0.01em;
+    color: var(--color-primary);
+  }
+
+  input,
+  textarea,
+  select {
+    color: var(--color-foreground);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-muted-foreground);
+  }
+}
+
+.theme-toggle {
+  position: fixed;
+  top: max(5rem, calc(env(safe-area-inset-top) + 4rem));
+  left: 0.75rem;
+  z-index: 80;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-card) 88%, transparent);
+  color: var(--color-primary);
+  padding: 0.55rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(14px);
+}
+
+.theme-toggle:hover {
+  background: var(--color-surface-strong);
+}
+
+/* Keep legacy dashboard utility colors readable in dark mode. */
+.dark .bg-white:not([data-qr-surface]),
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: var(--color-card) !important;
+}
+
+.dark .bg-gray-100,
+.dark .bg-gray-200,
+.dark .bg-slate-100 {
+  background-color: var(--color-surface-strong) !important;
+}
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-slate-900,
+.dark .text-slate-800 {
+  color: var(--color-foreground) !important;
+}
+
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-slate-500 {
+  color: var(--color-muted-foreground) !important;
+}
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-slate-200,
+.dark .border-slate-300 {
+  border-color: var(--color-border) !important;
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  border-color: var(--color-input) !important;
+  background-color: var(--color-surface) !important;
+  color: var(--color-foreground) !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: var(--color-surface-strong) !important;
+}
+
+.dark .bg-purple-50 {
+  background-color: color-mix(in oklab, var(--color-primary) 16%, var(--color-card)) !important;
+}
+
+.dark .text-purple-600,
+.dark .text-purple-700,
+.dark .text-indigo-600,
+.dark .text-indigo-700 {
+  color: var(--color-primary) !important;
+}
+
+.dark .bg-green-50,
+.dark .bg-green-100 {
+  background-color: oklch(0.28 0.06 155) !important;
+}
+
+.dark .text-green-600,
+.dark .text-green-700 {
+  color: oklch(0.78 0.16 155) !important;
+}
+
+.dark .bg-blue-50,
+.dark .bg-blue-100 {
+  background-color: oklch(0.27 0.065 250) !important;
+}
+
+.dark .text-blue-600,
+.dark .text-blue-700 {
+  color: oklch(0.78 0.13 245) !important;
+}
+
+.dark .bg-orange-50,
+.dark .bg-orange-100,
+.dark .bg-amber-50,
+.dark .bg-amber-100 {
+  background-color: oklch(0.29 0.065 65) !important;
+}
+
+.dark .text-orange-600,
+.dark .text-orange-700,
+.dark .text-amber-600,
+.dark .text-amber-700 {
+  color: oklch(0.82 0.15 70) !important;
+}
+
+.dark .bg-red-50,
+.dark .bg-red-100 {
+  background-color: oklch(0.27 0.07 24) !important;
+}
+
+.dark .text-red-600,
+.dark .text-red-700 {
+  color: oklch(0.76 0.16 25) !important;
+}
+
+[data-qr-surface] {
+  background: white !important;
+  color: #111827 !important;
+}
+
+@media (max-width: 640px) {
+  .theme-toggle span {
+    display: none;
   }
 }
 

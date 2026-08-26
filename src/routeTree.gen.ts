@@ -10,11 +10,25 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlatformRouteImport } from './routes/platform'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminStore_slugRouteImport } from './routes/admin.$store_slug'
+import { Route as KitchenIndexRouteImport } from './routes/kitchen.index'
+import { Route as KitchenStore_slugRouteImport } from './routes/kitchen.$store_slug'
+import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
+import { Route as LegalTermsRouteImport } from './routes/legal.terms'
+import { Route as SStore_slugRouteImport } from './routes/s.$store_slug'
+import { Route as TrackTracking_tokenRouteImport } from './routes/track.$tracking_token'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlatformRoute = PlatformRouteImport.update({
+  id: '/platform',
+  path: '/platform',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -22,31 +36,141 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminStore_slugRoute = AdminStore_slugRouteImport.update({
+  id: '/admin/$store_slug',
+  path: '/admin/$store_slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitchenIndexRoute = KitchenIndexRouteImport.update({
+  id: '/kitchen/',
+  path: '/kitchen/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KitchenStore_slugRoute = KitchenStore_slugRouteImport.update({
+  id: '/kitchen/$store_slug',
+  path: '/kitchen/$store_slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalPrivacyRoute = LegalPrivacyRouteImport.update({
+  id: '/legal/privacy',
+  path: '/legal/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LegalTermsRoute = LegalTermsRouteImport.update({
+  id: '/legal/terms',
+  path: '/legal/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SStore_slugRoute = SStore_slugRouteImport.update({
+  id: '/s/$store_slug',
+  path: '/s/$store_slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackTracking_tokenRoute = TrackTracking_tokenRouteImport.update({
+  id: '/track/$tracking_token',
+  path: '/track/$tracking_token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/platform': typeof PlatformRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/kitchen/$store_slug': typeof KitchenStore_slugRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/s/$store_slug': typeof SStore_slugRoute
+  '/track/$tracking_token': typeof TrackTracking_tokenRoute
+  '/admin/': typeof AdminIndexRoute
+  '/kitchen/': typeof KitchenIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/platform': typeof PlatformRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/kitchen/$store_slug': typeof KitchenStore_slugRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/s/$store_slug': typeof SStore_slugRoute
+  '/track/$tracking_token': typeof TrackTracking_tokenRoute
+  '/admin': typeof AdminIndexRoute
+  '/kitchen': typeof KitchenIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/platform': typeof PlatformRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/kitchen/$store_slug': typeof KitchenStore_slugRoute
+  '/legal/privacy': typeof LegalPrivacyRoute
+  '/legal/terms': typeof LegalTermsRoute
+  '/s/$store_slug': typeof SStore_slugRoute
+  '/track/$tracking_token': typeof TrackTracking_tokenRoute
+  '/admin/': typeof AdminIndexRoute
+  '/kitchen/': typeof KitchenIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sitemap.xml'
+  fullPaths:
+    | '/'
+    | '/platform'
+    | '/sitemap.xml'
+    | '/admin/$store_slug'
+    | '/kitchen/$store_slug'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/s/$store_slug'
+    | '/track/$tracking_token'
+    | '/admin/'
+    | '/kitchen/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sitemap.xml'
-  id: '__root__' | '/' | '/sitemap.xml'
+  to:
+    | '/'
+    | '/platform'
+    | '/sitemap.xml'
+    | '/admin/$store_slug'
+    | '/kitchen/$store_slug'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/s/$store_slug'
+    | '/track/$tracking_token'
+    | '/admin'
+    | '/kitchen'
+  id:
+    | '__root__'
+    | '/'
+    | '/platform'
+    | '/sitemap.xml'
+    | '/admin/$store_slug'
+    | '/kitchen/$store_slug'
+    | '/legal/privacy'
+    | '/legal/terms'
+    | '/s/$store_slug'
+    | '/track/$tracking_token'
+    | '/admin/'
+    | '/kitchen/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PlatformRoute: typeof PlatformRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  AdminStore_slugRoute: typeof AdminStore_slugRoute
+  KitchenStore_slugRoute: typeof KitchenStore_slugRoute
+  LegalPrivacyRoute: typeof LegalPrivacyRoute
+  LegalTermsRoute: typeof LegalTermsRoute
+  SStore_slugRoute: typeof SStore_slugRoute
+  TrackTracking_tokenRoute: typeof TrackTracking_tokenRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+  KitchenIndexRoute: typeof KitchenIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -58,6 +182,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform': {
+      id: '/platform'
+      path: '/platform'
+      fullPath: '/platform'
+      preLoaderRoute: typeof PlatformRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -65,12 +196,77 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/$store_slug': {
+      id: '/admin/$store_slug'
+      path: '/admin/$store_slug'
+      fullPath: '/admin/$store_slug'
+      preLoaderRoute: typeof AdminStore_slugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kitchen/': {
+      id: '/kitchen/'
+      path: '/kitchen'
+      fullPath: '/kitchen/'
+      preLoaderRoute: typeof KitchenIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kitchen/$store_slug': {
+      id: '/kitchen/$store_slug'
+      path: '/kitchen/$store_slug'
+      fullPath: '/kitchen/$store_slug'
+      preLoaderRoute: typeof KitchenStore_slugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/privacy': {
+      id: '/legal/privacy'
+      path: '/legal/privacy'
+      fullPath: '/legal/privacy'
+      preLoaderRoute: typeof LegalPrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/legal/terms': {
+      id: '/legal/terms'
+      path: '/legal/terms'
+      fullPath: '/legal/terms'
+      preLoaderRoute: typeof LegalTermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$store_slug': {
+      id: '/s/$store_slug'
+      path: '/s/$store_slug'
+      fullPath: '/s/$store_slug'
+      preLoaderRoute: typeof SStore_slugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track/$tracking_token': {
+      id: '/track/$tracking_token'
+      path: '/track/$tracking_token'
+      fullPath: '/track/$tracking_token'
+      preLoaderRoute: typeof TrackTracking_tokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PlatformRoute: PlatformRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  AdminStore_slugRoute: AdminStore_slugRoute,
+  KitchenStore_slugRoute: KitchenStore_slugRoute,
+  LegalPrivacyRoute: LegalPrivacyRoute,
+  LegalTermsRoute: LegalTermsRoute,
+  SStore_slugRoute: SStore_slugRoute,
+  TrackTracking_tokenRoute: TrackTracking_tokenRoute,
+  AdminIndexRoute: AdminIndexRoute,
+  KitchenIndexRoute: KitchenIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

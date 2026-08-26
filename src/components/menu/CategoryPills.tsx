@@ -1,18 +1,22 @@
 import { useEffect, useRef } from "react";
-import { categories } from "@/lib/menu-data";
+
+type Category = {
+  id: string;
+  name: string;
+  icon?: string;
+};
 
 type Props = {
   active: string;
   onChange: (id: string) => void;
+  categories: Category[];
 };
 
-export function CategoryPills({ active, onChange }: Props) {
+export function CategoryPills({ active, onChange, categories = [] }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const el = containerRef.current?.querySelector<HTMLElement>(
-      `[data-cat="${active}"]`,
-    );
+    const el = containerRef.current?.querySelector<HTMLElement>(`[data-cat="${active}"]`);
     el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
   }, [active]);
 
@@ -21,11 +25,8 @@ export function CategoryPills({ active, onChange }: Props) {
       className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-xl"
       aria-label="تصنيفات القائمة"
     >
-      <div
-        ref={containerRef}
-        className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3"
-      >
-        {categories.map((cat) => {
+      <div ref={containerRef} className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3">
+        {(categories || []).map((cat) => {
           const isActive = cat.id === active;
           return (
             <button

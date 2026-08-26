@@ -1,60 +1,36 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import offerFriday from "@/assets/offer-friday.jpg";
-import offerCombo from "@/assets/offer-combo.jpg";
-import offerFreeDrink from "@/assets/offer-free-drink.jpg";
 
-type Offer = {
+type Banner = {
   id: string;
-  image: string;
-  badge: string;
+  image_url: string;
   title: string;
   subtitle: string;
 };
 
-const offers: Offer[] = [
-  {
-    id: "friday",
-    image: offerFriday,
-    badge: "عرض الأسبوع",
-    title: "عرض الجمعة",
-    subtitle: "خصم ٢٥٪ على كل المشويات",
-  },
-  {
-    id: "combo",
-    image: offerCombo,
-    badge: "وفّر أكثر",
-    title: "وجبتان بخصم ٢٠٪",
-    subtitle: "اطلب وجبتين واحصل على الخصم فوراً",
-  },
-  {
-    id: "free-drink",
-    image: offerFreeDrink,
-    badge: "هدية",
-    title: "مشروب مجاني مع كل طبق",
-    subtitle: "مع كل طلب رئيسي احصل على مشروب على الحساب",
-  },
-];
-
 const AUTOPLAY_MS = 5000;
 
-export function OffersSlideshow() {
+export function OffersSlideshow({ banners = [] }: { banners?: Banner[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
-  const goTo = useCallback((next: number) => {
-    setIndex((next + offers.length) % offers.length);
-  }, []);
+  const goTo = useCallback(
+    (next: number) => {
+      if (banners.length === 0) return;
+      setIndex((next + banners.length) % banners.length);
+    },
+    [banners.length],
+  );
 
   // Autoplay
   useEffect(() => {
-    if (paused) return;
+    if (paused || banners.length <= 1) return;
     const t = setInterval(() => {
-      setIndex((i) => (i + 1) % offers.length);
+      setIndex((i) => (i + 1) % banners.length);
     }, AUTOPLAY_MS);
     return () => clearInterval(t);
-  }, [paused]);
+  }, [paused, banners.length]);
 
   // Sync horizontal scroll with index (RTL aware)
   useEffect(() => {
@@ -86,6 +62,9 @@ export function OffersSlideshow() {
     setIndex(closest);
   }, []);
 
+  // Don't render if no banners
+  if (banners.length === 0) return null;
+
   return (
     <section
       aria-label="العروض"
@@ -101,33 +80,28 @@ export function OffersSlideshow() {
           onScroll={handleScroll}
           className="no-scrollbar flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth"
         >
-          {offers.map((offer, i) => (
+          {banners.map((banner, i) => (
             <article
-              key={offer.id}
-              className="relative w-full shrink-0 snap-center overflow-hidden rounded-3xl"
+              key={banner.id}
+              className="relative w-full shrink-0 snap-center h-40 sm:h-52 md:h-60 overflow-hidden rounded-2xl"
               aria-roledescription="slide"
-              aria-label={`${i + 1} من ${offers.length}: ${offer.title}`}
+              aria-label={`${i + 1} من ${banners.length}: ${banner.title}`}
             >
               <img
-                src={offer.image}
-                alt={offer.title}
+                src={banner.image_url}
+                alt={banner.title}
                 width={1200}
                 height={600}
                 loading={i === 0 ? "eager" : "lazy"}
-                className="aspect-[2/1] w-full object-cover"
+                className="h-full w-full object-cover"
               />
               <div className="fade-mask-bottom absolute inset-0" />
               <div className="absolute right-4 bottom-4 left-4 flex items-end justify-between gap-2">
                 <div className="min-w-0">
-                  <span className="inline-block rounded-full bg-primary px-2.5 py-1 text-[10px] font-extrabold text-primary-foreground">
-                    {offer.badge}
-                  </span>
-                  <h2 className="mt-1.5 truncate text-lg font-extrabold text-foreground drop-shadow">
-                    {offer.title}
+                  <h2 className="mt-1.5 truncate text-lg font-extrabold text-white drop-shadow">
+                    {banner.title}
                   </h2>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {offer.subtitle}
-                  </p>
+                  <p className="truncate text-xs text-gray-200">{banner.subtitle}</p>
                 </div>
               </div>
             </article>
@@ -135,41 +109,45 @@ export function OffersSlideshow() {
         </div>
 
         {/* Arrow controls */}
-        <button
-          type="button"
-          aria-label="العرض السابق"
-          onClick={() => goTo(index - 1)}
-          className="absolute top-1/2 -translate-y-1/2 right-2 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur transition active:scale-90"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          aria-label="العرض التالي"
-          onClick={() => goTo(index + 1)}
-          className="absolute top-1/2 -translate-y-1/2 left-2 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur transition active:scale-90"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
+        {banners.length > 1 && (
+          <>
+            <button
+              type="button"
+              aria-label="العرض السابق"
+              onClick={() => goTo(index - 1)}
+              className="absolute top-1/2 -translate-y-1/2 right-2 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur transition active:scale-90"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="العرض التالي"
+              onClick={() => goTo(index + 1)}
+              className="absolute top-1/2 -translate-y-1/2 left-2 grid h-9 w-9 place-items-center rounded-full bg-background/70 text-foreground backdrop-blur transition active:scale-90"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Dots */}
-      <div className="mt-2.5 flex items-center justify-center gap-1.5">
-        {offers.map((offer, i) => (
-          <button
-            key={offer.id}
-            type="button"
-            aria-label={`اذهب إلى العرض ${i + 1}`}
-            onClick={() => goTo(i)}
-            className={
-              "h-1.5 rounded-full transition-all duration-300 " +
-              (i === index
-                ? "w-6 gradient-primary"
-                : "w-1.5 bg-border")
-            }
-          />
-        ))}
-      </div>
+      {banners.length > 1 && (
+        <div className="mt-2.5 flex items-center justify-center gap-1.5">
+          {banners.map((banner, i) => (
+            <button
+              key={banner.id}
+              type="button"
+              aria-label={`اذهب إلى العرض ${i + 1}`}
+              onClick={() => goTo(i)}
+              className={
+                "h-1.5 rounded-full transition-all duration-300 " +
+                (i === index ? "w-6 gradient-primary" : "w-1.5 bg-border")
+              }
+            />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

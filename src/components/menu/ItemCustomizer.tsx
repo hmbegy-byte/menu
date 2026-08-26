@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronLeft, Minus, Plus, X } from "lucide-react";
-import { formatPrice, type MenuItem } from "@/lib/menu-data";
+import { type MenuItem } from "../../lib/menu-data";
+import { formatCurrency } from "../../lib/currency";
 
 type Props = {
   item: MenuItem;
@@ -11,15 +12,17 @@ type Props = {
     unitPrice: number;
     selectionLabels: string[];
   }) => void;
+  currency?: string;
 };
 
-export function ItemCustomizer({ item, onClose, onAdd }: Props) {
+export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props) {
   const [step, setStep] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     for (const group of item.groups) {
-      initial[group.id] = group.multiple ? [] : [group.options[0]!.id];
+      initial[group.id] =
+        group.required && !group.multiple && group.options[0] ? [group.options[0].id] : [];
     }
     return initial;
   });
@@ -33,6 +36,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
 
   const group = item.groups[step]!;
   const isLast = step === item.groups.length - 1;
+  const canContinue = !group.required || (selected[group.id]?.length ?? 0) > 0;
 
   const { unitPrice, labels } = useMemo(() => {
     let total = item.price;
@@ -98,9 +102,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
           </button>
           <div className="absolute bottom-3 right-4 left-4">
             <h2 className="truncate text-xl font-extrabold">{item.name}</h2>
-            <p className="line-clamp-1 text-xs text-muted-foreground">
-              {item.description}
-            </p>
+            <p className="line-clamp-1 text-xs text-muted-foreground">{item.description}</p>
           </div>
         </div>
 
@@ -153,7 +155,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
                         : "bg-accent/20 text-accent"
                     }`}
                   >
-                    {opt.price === 0 ? "مجانًا" : `+ ${formatPrice(opt.price)}`}
+                    {opt.price === 0 ? "مجانًا" : `+ ${formatCurrency(opt.price, currency)}`}
                   </span>
                 </button>
               );
@@ -186,7 +188,7 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
             <div className="min-w-0 text-left">
               <p className="text-[11px] text-muted-foreground">الإجمالي</p>
               <p className="truncate text-lg font-extrabold tabular-nums">
-                {formatPrice(unitPrice * quantity)}
+                {formatCurrency(unitPrice * quantity, currency)}
               </p>
             </div>
           </div>
@@ -211,7 +213,8 @@ export function ItemCustomizer({ item, onClose, onAdd }: Props) {
                   setStep((s) => s + 1);
                 }
               }}
-              className="gradient-primary h-12 flex-1 rounded-2xl text-sm font-extrabold text-primary-foreground shadow-glow transition-transform active:scale-[0.98]"
+              disabled={!canContinue}
+              className="gradient-primary h-12 flex-1 rounded-2xl text-sm font-extrabold text-primary-foreground shadow-glow transition-transform active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLast ? "أضف إلى السلة" : "التالي"}
             </button>

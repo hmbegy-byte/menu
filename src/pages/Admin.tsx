@@ -1,0 +1,193 @@
+import React, { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useAdminData } from "../hooks/useAdminData";
+import {
+  LayoutDashboard,
+  Package,
+  History,
+  LogOut,
+  FolderTree,
+  Tag,
+  PlusCircle,
+  Store,
+  Palette,
+  Settings,
+  CreditCard,
+  QrCode,
+  Building2,
+  Users,
+  Globe2,
+  Crown,
+  Truck,
+  BarChart3,
+  ContactRound,
+  ReceiptText,
+  Activity,
+  DatabaseBackup,
+} from "lucide-react";
+
+import StoreSettings from "./admin/StoreSettings";
+import ProductManager from "./admin/ProductManager";
+import OrderHistory from "./admin/OrderHistory";
+import CategoryManager from "./admin/CategoryManager";
+import OffersManager from "./admin/OffersManager";
+import AddonsManager from "./admin/AddonsManager";
+import RestaurantProfile from "./admin/RestaurantProfile";
+import AppearanceSettings from "./admin/AppearanceSettings";
+import GeneralSettings from "./admin/GeneralSettings";
+import PaymentSettings from "./admin/PaymentSettings";
+import QRCodeGenerator from "./admin/QRCodeGenerator";
+import BranchManager from "./admin/BranchManager";
+import TeamManager from "./admin/TeamManager";
+import WhiteLabelSettings from "./admin/WhiteLabelSettings";
+import SubscriptionSettings from "./admin/SubscriptionSettings";
+import DeliverySettings from "./admin/DeliverySettings";
+import ReportsDashboard from "./admin/ReportsDashboard";
+import CustomersManager from "./admin/CustomersManager";
+import BillingAddons from "./admin/BillingAddons";
+import OperationalHealth from "./admin/OperationalHealth";
+import DataTools from "./admin/DataTools";
+import { signOutStore } from "../lib/access";
+
+export default function Admin({ storeSlug }) {
+  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("overview");
+
+  const adminData = useAdminData(storeSlug);
+  const { store, loading, error, updateStore } = adminData;
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="w-10 h-10 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (error || !store) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 flex-col gap-4">
+        <p className="text-xl text-gray-700">
+          {error === "AUTH_REQUIRED"
+            ? "يجب تسجيل الدخول بحساب إدارة مصرح له"
+            : error || "المتجر غير موجود"}
+        </p>
+        <button
+          onClick={() => navigate({ to: "/admin" })}
+          className="px-4 py-2 bg-purple-600 text-white rounded"
+        >
+          العودة
+        </button>
+      </div>
+    );
+  }
+
+  const navItems = [
+    { id: "overview", label: "الرئيسية", icon: LayoutDashboard },
+    { id: "orders", label: "الطلبات", icon: History },
+    { id: "delivery", label: "التوصيل والاستلام", icon: Truck },
+    { id: "reports", label: "التقارير", icon: BarChart3 },
+    { id: "customers", label: "العملاء", icon: ContactRound },
+    { id: "categories", label: "التصنيفات", icon: FolderTree },
+    { id: "products", label: "المنتجات", icon: Package },
+    { id: "offers", label: "العروض والخصومات", icon: Tag },
+    { id: "addons", label: "الإضافات السريعة", icon: PlusCircle },
+    { id: "profile", label: "معلومات المطعم", icon: Store },
+    { id: "appearance", label: "المظهر والتخصيص", icon: Palette },
+    { id: "settings", label: "الإعدادات العامة", icon: Settings },
+    { id: "payment", label: "إعدادات الدفع", icon: CreditCard },
+    { id: "qrcode", label: "الكيو ار كود", icon: QrCode },
+    { id: "branches", label: "الفروع", icon: Building2 },
+    { id: "team", label: "الموظفون والصلاحيات", icon: Users },
+    { id: "white-label", label: "الهوية والنطاق", icon: Globe2 },
+    { id: "subscription", label: "الباقة والاشتراك", icon: Crown },
+    { id: "billing", label: "الفوترة والإضافات", icon: ReceiptText },
+    { id: "health", label: "حالة التشغيل", icon: Activity },
+    { id: "data", label: "البيانات والنسخ", icon: DatabaseBackup },
+  ];
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row" dir="rtl">
+      {/* Sidebar Navigation */}
+      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-l border-gray-200 flex flex-col sticky top-0 md:h-screen z-20 shadow-sm">
+        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h1 className="font-bold text-xl text-gray-900">لوحة الإدارة</h1>
+            <p className="text-sm text-gray-500 mt-1">{store.name}</p>
+          </div>
+          {/* Mobile menu toggle could go here if needed */}
+        </div>
+
+        <nav className="flex-1 p-4 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors whitespace-nowrap ${
+                  activeTab === item.id
+                    ? "bg-purple-50 text-purple-700 font-bold"
+                    : "text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-gray-100 hidden md:block">
+          <button
+            onClick={async () => {
+              await signOutStore();
+              navigate({ to: "/admin" });
+            }}
+            className="flex items-center gap-3 px-4 py-3 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl w-full transition-colors"
+          >
+            <LogOut size={20} />
+            <span>خروج</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content Area */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+        <div className="max-w-5xl mx-auto pb-20 md:pb-0">
+          {activeTab === "overview" && (
+            <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
+          )}
+          {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
+          {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
+          {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
+          {activeTab === "customers" && <CustomersManager adminData={adminData} />}
+          {activeTab === "categories" && <CategoryManager adminData={adminData} />}
+          {activeTab === "products" && (
+            <ProductManager
+              store={store}
+              products={adminData.products}
+              setProducts={adminData.setProducts}
+              categories={adminData.categories}
+              adminData={adminData}
+            />
+          )}
+          {activeTab === "offers" && <OffersManager adminData={adminData} />}
+          {activeTab === "addons" && <AddonsManager adminData={adminData} />}
+          {activeTab === "profile" && <RestaurantProfile adminData={adminData} />}
+          {activeTab === "appearance" && <AppearanceSettings adminData={adminData} />}
+          {activeTab === "settings" && <GeneralSettings adminData={adminData} />}
+          {activeTab === "payment" && <PaymentSettings adminData={adminData} />}
+          {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
+          {activeTab === "branches" && <BranchManager adminData={adminData} />}
+          {activeTab === "team" && <TeamManager adminData={adminData} />}
+          {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
+          {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
+          {activeTab === "billing" && <BillingAddons adminData={adminData} />}
+          {activeTab === "health" && <OperationalHealth adminData={adminData} />}
+          {activeTab === "data" && <DataTools adminData={adminData} />}
+        </div>
+      </main>
+    </div>
+  );
+}

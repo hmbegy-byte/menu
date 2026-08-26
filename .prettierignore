@@ -2,6 +2,8 @@ node_modules
 dist
 .output
 .vinxi
+.legacy-archive
+lovable-menu
 pnpm-lock.yaml
 package-lock.json
 bun.lock

@@ -1,0 +1,20 @@
+{
+  "name": "منصة طلبات المطاعم",
+  "short_name": "طلبات",
+  "description": "إدارة القائمة والطلبات وشاشة المطبخ من أي جهاز",
+  "lang": "ar",
+  "dir": "rtl",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7e22ce",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

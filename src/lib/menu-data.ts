@@ -1,9 +1,9 @@
-import grilledFish from "@/assets/sea-grilled-fish.jpg";
-import friedShrimp from "@/assets/sea-fried-shrimp.jpg";
-import seafoodBowl from "@/assets/sea-seafood-bowl.jpg";
-import shrimpWrap from "@/assets/sea-shrimp-wrap.jpg";
-import soup from "@/assets/sea-soup.jpg";
-import drink from "@/assets/sea-drink.jpg";
+import grilledFish from "../assets/sea-grilled-fish.jpg";
+import friedShrimp from "../assets/sea-fried-shrimp.jpg";
+import seafoodBowl from "../assets/sea-seafood-bowl.jpg";
+import shrimpWrap from "../assets/sea-shrimp-wrap.jpg";
+import soup from "../assets/sea-soup.jpg";
+import drink from "../assets/sea-drink.jpg";
 
 export type Option = {
   id: string;
@@ -16,6 +16,7 @@ export type OptionGroup = {
   title: string;
   subtitle: string;
   multiple: boolean;
+  required?: boolean;
   options: Option[];
 };
 
@@ -208,5 +209,4 @@ export const menuItems: MenuItem[] = [
   },
 ];
 
-export const formatPrice = (value: number) =>
-  `${value.toFixed(0)} ر.س`;
+export const formatPrice = (value: number) => `${value.toFixed(0)} ر.س`;
