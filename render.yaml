@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: flavor-flow-saudi
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci && npm run build:render
+    startCommand: npm run start:render
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
+      - key: NITRO_PRESET
+        value: node-server
+      - key: HOST
+        value: 0.0.0.0

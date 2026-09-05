@@ -12,5 +12,8 @@ if (!existsSync(resolve(source, "server", "index.mjs"))) {
 
 rmSync(destination, { recursive: true, force: true });
 cpSync(source, destination, { recursive: true });
+// The root index is a Vite renderer template, not a deployable static page.
+// Leaving it in public lets an assets-first host bypass the SSR worker.
+rmSync(resolve(destination, "public", "index.html"), { force: true });
 mkdirSync(resolve(destination, "server"), { recursive: true });
 cpSync(resolve(source, "server", "index.mjs"), resolve(destination, "server", "index.js"));
