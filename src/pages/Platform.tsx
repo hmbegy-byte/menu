@@ -12,6 +12,7 @@ import {
 import { usePlatformData } from "../hooks/usePlatformData";
 import { hasPlatformAccess, signInPlatform, signOutStore } from "../lib/access";
 import { PLAN_CATALOG, resolvePlan } from "../lib/plans";
+import { isMockMode } from "../lib/supabase";
 
 export default function Platform() {
   return (
@@ -90,7 +91,11 @@ function PlatformClient() {
           <button className="mt-5 w-full rounded-xl bg-purple-600 py-3 font-bold text-white">
             دخول لوحة المنصة
           </button>
-          <p className="mt-4 text-xs text-gray-500">تجريبي: owner@platform.local / 12345678</p>
+          <p className="mt-4 text-xs text-gray-500">
+            {isMockMode
+              ? "تجريبي: owner@platform.local / 12345678"
+              : "استخدم حساب مالك المنصة المسجل في Supabase."}
+          </p>
         </form>
       </div>
     );
