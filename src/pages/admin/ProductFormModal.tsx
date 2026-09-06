@@ -39,7 +39,7 @@ export default function ProductFormModal({
       ...prev,
       options: [
         ...prev.options,
-        { title: "", required: false, choices: [{ name: "", extra_price: 0 }] },
+        { id: crypto.randomUUID(), title: "", required: false, multiple: false, min_selections: 0, max_selections: 1, choices: [{ id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true }] },
       ],
     }));
   };
@@ -59,7 +59,7 @@ export default function ProductFormModal({
 
   const addChoice = (groupIndex) => {
     const newOptions = [...formData.options];
-    newOptions[groupIndex].choices.push({ name: "", extra_price: 0 });
+    newOptions[groupIndex].choices.push({ id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true });
     setFormData((prev) => ({ ...prev, options: newOptions }));
   };
 
@@ -77,6 +77,19 @@ export default function ProductFormModal({
     setFormData((prev) => ({ ...prev, options: newOptions }));
   };
   // -----------------------------
+  const applyFamilyPlatterTemplate = () => setFormData((prev) => ({ ...prev, options: [
+    { id: "serving-size", title: "حجم التقديم", required: true, multiple: false, min_selections: 1, max_selections: 1, choices: [
+      { id: "serves-2", name: "يكفي شخصين", extra_price: 0, is_available: true },
+      { id: "serves-4", name: "يكفي 4 أشخاص", extra_price: 60, is_available: true },
+      { id: "serves-6", name: "يكفي 6 أشخاص", extra_price: 110, is_available: true },
+    ]},
+    { id: "sides", title: "الأطباق الجانبية", required: true, multiple: true, min_selections: 2, max_selections: 3, choices: [
+      { id: "rice", name: "أرز", extra_price: 0, is_available: true }, { id: "fries", name: "بطاطس", extra_price: 0, is_available: true }, { id: "salad", name: "سلطة", extra_price: 8, is_available: true },
+    ]},
+    { id: "preparation", title: "طريقة التحضير", required: true, multiple: false, min_selections: 1, max_selections: 1, choices: [
+      { id: "medium", name: "متوسط", extra_price: 0, is_available: true }, { id: "well-done", name: "مستوي جيدًا", extra_price: 0, is_available: true },
+    ]},
+  ] }));
 
   const handleImageFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -253,6 +266,7 @@ export default function ProductFormModal({
           <div className="border-t border-gray-200 pt-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">خيارات المنتج (إضافات، أحجام...)</h3>
+              <button type="button" onClick={applyFamilyPlatterTemplate} className="text-xs font-bold text-purple-700 underline">قالب صينية عائلية</button>
               <button
                 type="button"
                 onClick={addOptionGroup}
@@ -288,6 +302,7 @@ export default function ProductFormModal({
                     />
                   </div>
                   <div className="flex items-end pb-2">
+                    <div className="space-y-2">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
@@ -297,7 +312,13 @@ export default function ProductFormModal({
                       />
                       <span className="text-sm text-gray-700">هذا الخيار إجباري للعميل</span>
                     </label>
+                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={Boolean(group.multiple)} onChange={(e) => updateOptionGroup(groupIdx,"multiple",e.target.checked)} /><span className="text-sm text-gray-700">يسمح بأكثر من اختيار</span></label>
+                    </div>
                   </div>
+                </div>
+                <div className="mb-4 grid grid-cols-2 gap-3">
+                  <label className="text-xs text-gray-600">الحد الأدنى<input type="number" min="0" value={group.min_selections ?? (group.required ? 1 : 0)} onChange={(e) => updateOptionGroup(groupIdx,"min_selections",Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2" /></label>
+                  <label className="text-xs text-gray-600">الحد الأقصى<input type="number" min="1" value={group.max_selections ?? 1} onChange={(e) => updateOptionGroup(groupIdx,"max_selections",Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2" /></label>
                 </div>
 
                 <div className="bg-gray-50 p-3 rounded-xl space-y-2 border border-gray-100">
@@ -335,6 +356,7 @@ export default function ProductFormModal({
                       >
                         <X size={16} />
                       </button>
+                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={choice.is_available !== false} onChange={(e) => updateChoice(groupIdx,choiceIdx,"is_available",e.target.checked)} />متاح</label>
                     </div>
                   ))}
                   <button

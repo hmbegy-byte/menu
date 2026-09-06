@@ -9,6 +9,7 @@ export type Option = {
   id: string;
   name: string;
   price: number;
+  isAvailable?: boolean;
 };
 
 export type OptionGroup = {
@@ -17,6 +18,8 @@ export type OptionGroup = {
   subtitle: string;
   multiple: boolean;
   required?: boolean;
+  minSelections?: number;
+  maxSelections?: number;
   options: Option[];
 };
 

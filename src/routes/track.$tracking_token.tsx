@@ -17,6 +17,7 @@ function TrackingPage() {
   const { tracking_token } = Route.useParams();
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState("");
+  const [usualToken, setUsualToken] = useState("");
   useEffect(() => {
     let channel: any;
     const load = async () => {
@@ -146,6 +147,19 @@ function TrackingPage() {
           className="block rounded-2xl bg-white py-3 text-center font-bold text-gray-700"
         >
           العودة إلى قائمة المطعم
+        </Link>
+        <button onClick={async () => {
+          const { data, error: saveError } = await supabase.rpc("save_usual_order", { p_store_id: order.store_id, p_tracking_token: tracking_token, p_label: "طلبي المعتاد" });
+          if (saveError) setError(saveError.message); else setUsualToken(data);
+        }} className="w-full rounded-2xl border bg-white py-3 text-center font-bold text-purple-700">حفظ كطلبي المعتاد</button>
+        {usualToken && <Link to="/s/$store_slug" params={{ store_slug: order.store_slug || "demo" }} search={{ usual: usualToken } as any} className="block rounded-2xl bg-purple-50 py-3 text-center font-bold text-purple-700">فتح طلبي المعتاد</Link>}
+        <Link
+          to="/s/$store_slug"
+          params={{ store_slug: order.store_slug || "demo" }}
+          search={{ reorder: tracking_token } as any}
+          className="block rounded-2xl bg-purple-600 py-3 text-center font-bold text-white"
+        >
+          اطلب نفس الطلب مرة أخرى
         </Link>
       </div>
     </main>

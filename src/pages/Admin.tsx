@@ -25,6 +25,8 @@ import {
   Activity,
   DatabaseBackup,
   Gift,
+  Megaphone,
+  Workflow,
 } from "lucide-react";
 
 import StoreSettings from "./admin/StoreSettings";
@@ -49,6 +51,9 @@ import BillingAddons from "./admin/BillingAddons";
 import OperationalHealth from "./admin/OperationalHealth";
 import DataTools from "./admin/DataTools";
 import LoyaltySettings from "./admin/LoyaltySettings";
+import CampaignManager from "./admin/CampaignManager";
+import OperationsSuite from "./admin/OperationsSuite";
+import RetentionManager from "./admin/RetentionManager";
 import { signOutStore } from "../lib/access";
 
 export default function Admin({ storeSlug }) {
@@ -89,7 +94,10 @@ export default function Admin({ storeSlug }) {
     { id: "orders", label: "الطلبات", icon: History },
     { id: "delivery", label: "التوصيل والاستلام", icon: Truck },
     { id: "reports", label: "التقارير", icon: BarChart3 },
+    { id: "campaigns", label: "روابط الحملات", icon: Megaphone },
+    { id: "operations", label: "التشغيل المتقدم", icon: Workflow },
     { id: "customers", label: "العملاء", icon: ContactRound },
+    { id: "retention", label: "الاحتفاظ والعملاء", icon: Users },
     { id: "categories", label: "التصنيفات", icon: FolderTree },
     { id: "products", label: "المنتجات", icon: Package },
     { id: "offers", label: "العروض والخصومات", icon: Tag },
@@ -164,7 +172,10 @@ export default function Admin({ storeSlug }) {
           {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
           {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
           {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
+          {activeTab === "campaigns" && <CampaignManager adminData={adminData} />}
+          {activeTab === "operations" && <OperationsSuite adminData={adminData} />}
           {activeTab === "customers" && <CustomersManager adminData={adminData} />}
+          {activeTab === "retention" && <RetentionManager adminData={adminData} />}
           {activeTab === "categories" && <CategoryManager adminData={adminData} />}
           {activeTab === "products" && (
             <ProductManager

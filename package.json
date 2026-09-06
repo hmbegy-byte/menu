@@ -10,6 +10,7 @@
     "build:dev": "vite build --mode development",
     "start:render": "node .output/server/index.mjs",
     "preview": "vite preview",
+    "test:mvp": "node --test tests/*.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },

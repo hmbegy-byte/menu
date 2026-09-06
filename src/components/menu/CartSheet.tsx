@@ -23,6 +23,7 @@ export type CartLine = {
   quantity: number;
   unitPrice: number;
   selectionLabels: string[];
+  selectedOptions?: Array<{ group_id: string; choice_id: string; name: string }>;
 };
 
 type CartSheetProps = {
@@ -145,7 +146,7 @@ export function CartSheet({
         product_name: line.name,
         unit_price: line.unitPrice,
         quantity: line.quantity,
-        selected_options: line.selectionLabels.map((name) => ({ name })),
+        selected_options: line.selectedOptions || line.selectionLabels.map((name) => ({ name })),
       }));
       let savedOrder;
       if (!store?.id) throw new Error("تعذر تحديد المطعم لهذا الطلب");
@@ -186,7 +187,8 @@ export function CartSheet({
         };
         writeDemo("orders", [savedOrder, ...readDemoData().orders]);
       } else {
-        const { data, error: orderError } = await supabase.rpc("create_order_v3", {
+        const attribution = store?.attribution || {};
+        const { data, error: orderError } = await supabase.rpc("create_order_v4", {
           p_store_id: store.id,
           p_customer_name: form.customerName.trim(),
           p_customer_phone: form.customerPhone.trim(),
@@ -200,6 +202,8 @@ export function CartSheet({
           p_idempotency_key: checkoutAttemptId,
           p_delivery_latitude: form.latitude,
           p_delivery_longitude: form.longitude,
+          p_campaign_slug: attribution.campaign || null,
+          p_attribution_source: attribution.source || null,
         });
         if (orderError) throw orderError;
         savedOrder = Array.isArray(data) ? data[0] : data;

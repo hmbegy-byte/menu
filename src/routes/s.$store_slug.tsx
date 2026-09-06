@@ -11,6 +11,7 @@ import { type MenuItem } from "../lib/menu-data";
 import { formatCurrency } from "../lib/currency";
 import { useStoreData } from "../hooks/useStoreData";
 import { BrandUpdater } from "../components/BrandUpdater";
+import { supabase } from "../lib/supabase";
 
 export const Route = createFileRoute("/s/$store_slug")({
   head: () => ({
@@ -63,6 +64,9 @@ function MenuPage() {
   const [customizing, setCustomizing] = useState<MenuItem | null>(null);
   const [cartOpen, setCartOpen] = useState(false);
   const [lines, setLines] = useState<CartLine[]>([]);
+  const [reorderNotice, setReorderNotice] = useState("");
+  const query = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+  const attribution = { campaign: query.get("campaign"), source: query.get("source") };
 
   // Set initial active category when loaded
   useEffect(() => {
@@ -82,15 +86,18 @@ function MenuPage() {
   const mappedProducts = useMemo(() => {
     return products.map((p) => {
       const groups = (p.options || []).map((opt, i) => ({
-        id: `group_${i}`,
+        id: opt.id || `group_${i}`,
         title: opt.title || "خيارات",
         subtitle: opt.required ? "إجباري" : "اختياري",
         multiple: Boolean(opt.multiple),
         required: Boolean(opt.required),
+        minSelections: Number(opt.min_selections ?? (opt.required ? 1 : 0)),
+        maxSelections: Number(opt.max_selections ?? (opt.multiple ? (opt.choices || []).length : 1)),
         options: (opt.choices || []).map((c, j) => ({
-          id: `choice_${i}_${j}`,
+          id: c.id || `choice_${i}_${j}`,
           name: c.name || c.label || "",
           price: Number(c.extra_price) || Number(c.price) || 0,
+          isAvailable: c.is_available !== false,
         })),
       }));
 
@@ -106,6 +113,36 @@ function MenuPage() {
       };
     });
   }, [products]);
+
+  useEffect(() => {
+    const requestedProduct = query.get("product");
+    if (requestedProduct) {
+      const item = mappedProducts.find((product) => product.id === requestedProduct);
+      if (item) { setActiveCategory(item.category); setCustomizing(item); }
+    }
+  }, [mappedProducts]);
+
+  useEffect(() => {
+    const token = query.get("reorder") || query.get("usual");
+    if (!token || !store?.id) return;
+    const rpcName = query.get("usual") ? "usual_order_preview" : "reorder_preview";
+    const params = query.get("usual") ? { p_store_id: store.id, p_access_token: token } : { p_store_id: store.id, p_tracking_token: token };
+    supabase.rpc(rpcName, params).then(({ data, error: previewError }) => {
+      if (previewError || !data?.items) return setReorderNotice("تعذر استرجاع الطلب السابق.");
+      const unavailable: string[] = [];
+      const rebuilt = data.items.flatMap((oldItem: any) => {
+        const current = mappedProducts.find((product) => product.id === oldItem.product_id);
+        if (!current || !oldItem.is_available) { unavailable.push(oldItem.name); return []; }
+        const selectedOptions = (oldItem.selected_options || []).filter((choice: any) => current.groups.some((group) => group.id === choice.group_id && group.options.some((option) => option.id === choice.choice_id && option.isAvailable !== false)));
+        const requiredMissing = current.groups.some((group) => (group.minSelections || 0) > selectedOptions.filter((choice:any) => choice.group_id===group.id).length);
+        if (requiredMissing) { unavailable.push(`${oldItem.name} (تغيّرت خياراته)`); return []; }
+        const optionPrice = current.groups.flatMap((group) => group.options).filter((option) => selectedOptions.some((choice:any) => choice.choice_id===option.id)).reduce((sum, option) => sum+option.price,0);
+        return [{ key: `${current.id}-${Date.now()}-${Math.random()}`, productId: current.id, name: current.name, image: current.image, quantity: oldItem.quantity, unitPrice: current.price+optionPrice, selectionLabels: selectedOptions.map((choice:any) => choice.name), selectedOptions }];
+      });
+      setLines(rebuilt); setCartOpen(rebuilt.length>0);
+      setReorderNotice(unavailable.length ? `لم نضف: ${unavailable.join("، ")}. راجع السلة والأسعار الحالية قبل التأكيد.` : "أعدنا بناء الطلب بالأسعار والتوفر الحاليين. راجعه قبل التأكيد.");
+    });
+  }, [store?.id, mappedProducts]);
 
   const visibleItems = useMemo(
     () => mappedProducts.filter((item) => item.category === activeCategory),
@@ -178,6 +215,7 @@ function MenuPage() {
             : "عذراً، المطعم لا يستقبل طلبات في الوقت الحالي."}
         </div>
       )}
+      {reorderNotice && <div className="mx-4 mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">{reorderNotice}</div>}
 
       <CategoryPills
         active={activeCategory || ""}
@@ -205,6 +243,7 @@ function MenuPage() {
                         quantity: 1,
                         unitPrice: item.price,
                         selectionLabels: [],
+                        selectedOptions: [],
                       },
                     ]);
                   } else {
@@ -291,7 +330,7 @@ function MenuPage() {
           item={customizing}
           currency={currency}
           onClose={() => setCustomizing(null)}
-          onAdd={({ item, quantity, unitPrice, selectionLabels }) => {
+          onAdd={({ item, quantity, unitPrice, selectionLabels, selectedOptions }) => {
             try {
               setLines((prev) => [
                 ...prev,
@@ -303,6 +342,7 @@ function MenuPage() {
                   quantity,
                   unitPrice,
                   selectionLabels,
+                  selectedOptions,
                 },
               ]);
               setCustomizing(null);
@@ -324,7 +364,7 @@ function MenuPage() {
             )
           }
           onSubmitted={() => setLines([])}
-          store={store}
+          store={{ ...store, attribution }}
           settings={settings}
           payment={payment}
         />

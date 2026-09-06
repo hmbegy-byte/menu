@@ -11,6 +11,7 @@ type Props = {
     quantity: number;
     unitPrice: number;
     selectionLabels: string[];
+    selectedOptions: Array<{ group_id: string; choice_id: string; name: string }>;
   }) => void;
   currency?: string;
 };
@@ -36,7 +37,10 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
 
   const group = item.groups[step]!;
   const isLast = step === item.groups.length - 1;
-  const canContinue = !group.required || (selected[group.id]?.length ?? 0) > 0;
+  const selectedCount = selected[group.id]?.length ?? 0;
+  const minimum = group.minSelections ?? (group.required ? 1 : 0);
+  const maximum = group.maxSelections ?? (group.multiple ? group.options.length : 1);
+  const canContinue = selectedCount >= minimum && selectedCount <= maximum;
 
   const { unitPrice, labels } = useMemo(() => {
     let total = item.price;
@@ -61,7 +65,7 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
           ...prev,
           [group.id]: current.includes(optionId)
             ? current.filter((id) => id !== optionId)
-            : [...current, optionId],
+            : current.length >= maximum ? current : [...current, optionId],
         };
       }
       return { ...prev, [group.id]: [optionId] };
@@ -123,9 +127,10 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
           </p>
           <h3 className="mt-1 text-lg font-extrabold">{group.title}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{group.subtitle}</p>
+          <p className="mt-1 text-xs text-muted-foreground">اختر من {minimum} إلى {maximum}</p>
 
           <div className="mt-4 space-y-2">
-            {group.options.map((opt) => {
+            {group.options.filter((opt) => opt.isAvailable !== false).map((opt) => {
               const isOn = (selected[group.id] ?? []).includes(opt.id);
               return (
                 <button
@@ -208,7 +213,14 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
               type="button"
               onClick={() => {
                 if (isLast) {
-                  onAdd({ item, quantity, unitPrice, selectionLabels: labels });
+                  const selectedOptions = item.groups.flatMap((g) =>
+                    (selected[g.id] || []).map((choiceId) => ({
+                      group_id: g.id,
+                      choice_id: choiceId,
+                      name: g.options.find((option) => option.id === choiceId)?.name || "",
+                    })),
+                  );
+                  onAdd({ item, quantity, unitPrice, selectionLabels: labels, selectedOptions });
                 } else {
                   setStep((s) => s + 1);
                 }
