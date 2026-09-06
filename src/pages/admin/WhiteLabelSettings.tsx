@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Globe2, ShieldCheck } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 export default function WhiteLabelSettings({ adminData }) {
   const [form, setForm] = useState({
@@ -9,6 +10,12 @@ export default function WhiteLabelSettings({ adminData }) {
     supportPhone: adminData.store.white_label?.supportPhone || "",
   });
   const [message, setMessage] = useState("");
+  const [brand, setBrand] = useState({ brand_name: adminData.store.name || "", favicon_url: "", meta_title: "", meta_description: "", og_image_url: "", theme_color: "#7e22ce", pwa_short_name: "" });
+  useEffect(() => {
+    supabase.from("brand_assets").select("*").eq("store_id", adminData.store.id).maybeSingle().then(({ data }) => {
+      if (data) setBrand((current) => ({ ...current, ...data }));
+    });
+  }, [adminData.store.id]);
   const canUseDomain = adminData.features.includes("custom_domain");
   const canWhiteLabel = adminData.features.includes("white_label");
   const save = async (event) => {
@@ -21,6 +28,17 @@ export default function WhiteLabelSettings({ adminData }) {
         supportPhone: form.supportPhone,
       },
     });
+    const { error: brandError } = await supabase.from("brand_assets").upsert({
+      store_id: adminData.store.id,
+      organization_id: adminData.organization.id,
+      ...brand,
+      is_platform_default: false,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "store_id" });
+    if (brandError) {
+      setMessage("تعذر حفظ صور الهوية: " + brandError.message);
+      return;
+    }
     setMessage("تم حفظ إعدادات الهوية والنطاق.");
   };
   return (
@@ -52,6 +70,19 @@ export default function WhiteLabelSettings({ adminData }) {
             <ShieldCheck size={17} /> بعد ربط DNS ستتم المراجعة وإصدار SSL تلقائيًا.
           </p>
         )}
+      </section>
+      <section className="rounded-2xl border bg-white p-5">
+        <h3 className="mb-1 font-bold">هوية المتصفح والمشاركة</h3>
+        <p className="mb-4 text-sm text-gray-500">غيّر الاسم والأيقونة وصورة الرابط التي يراها العميل بدل هوية المنصة.</p>
+        <div className="grid gap-4 md:grid-cols-2">
+          <label className="text-sm font-bold">اسم العلامة<input value={brand.brand_name} onChange={(e) => setBrand({...brand, brand_name:e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal" /></label>
+          <label className="text-sm font-bold">عنوان صفحة المتصفح<input value={brand.meta_title} onChange={(e) => setBrand({...brand, meta_title:e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal" /></label>
+          <label className="text-sm font-bold">رابط أيقونة المتصفح<input dir="ltr" type="url" placeholder="https://.../favicon.png" value={brand.favicon_url} onChange={(e) => setBrand({...brand, favicon_url:e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal" /></label>
+          <label className="text-sm font-bold">رابط صورة المشاركة<input dir="ltr" type="url" placeholder="https://.../share.jpg" value={brand.og_image_url} onChange={(e) => setBrand({...brand, og_image_url:e.target.value})} className="mt-1 w-full rounded-xl border p-3 font-normal" /></label>
+          <label className="text-sm font-bold">لون المتصفح<input type="color" value={brand.theme_color} onChange={(e) => setBrand({...brand, theme_color:e.target.value})} className="mt-1 h-12 w-full rounded-xl border p-1" /></label>
+          <label className="text-sm font-bold">الاسم المختصر للتطبيق<input value={brand.pwa_short_name} onChange={(e) => setBrand({...brand, pwa_short_name:e.target.value})} maxLength={12} className="mt-1 w-full rounded-xl border p-3 font-normal" /></label>
+          <label className="text-sm font-bold md:col-span-2">وصف الصفحة<textarea value={brand.meta_description} onChange={(e) => setBrand({...brand, meta_description:e.target.value})} className="mt-1 min-h-24 w-full rounded-xl border p-3 font-normal" /></label>
+        </div>
       </section>
       <section className="rounded-2xl border bg-white p-5">
         <h3 className="mb-4 font-bold">الدعم باسم المطعم</h3>

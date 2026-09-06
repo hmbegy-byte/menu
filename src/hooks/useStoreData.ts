@@ -11,6 +11,7 @@ const initial: any = {
   banners: [],
   addons: [],
   appearance: {},
+  brand_assets: null,
   settings: {},
   payment: {},
 };
@@ -71,6 +72,11 @@ export function useStoreData(storeSlug: string) {
             .eq("store_id", store.id)
             .eq("is_active", true)
             .order("created_at"),
+          supabase
+            .from("brand_assets")
+            .select("*")
+            .eq("store_id", store.id)
+            .maybeSingle(),
         ]);
         const failed = results.find((r) => r.error);
         if (failed?.error) throw failed.error;
@@ -82,6 +88,7 @@ export function useStoreData(storeSlug: string) {
             offers: results[2].data || [],
             banners: results[3].data || [],
             addons: results[4].data || [],
+            brand_assets: results[5].data || null,
             appearance: store.appearance || {},
             settings: store.settings || {},
             payment: store.payment || {},

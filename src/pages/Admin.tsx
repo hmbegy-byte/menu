@@ -24,6 +24,7 @@ import {
   ReceiptText,
   Activity,
   DatabaseBackup,
+  Gift,
 } from "lucide-react";
 
 import StoreSettings from "./admin/StoreSettings";
@@ -47,6 +48,7 @@ import CustomersManager from "./admin/CustomersManager";
 import BillingAddons from "./admin/BillingAddons";
 import OperationalHealth from "./admin/OperationalHealth";
 import DataTools from "./admin/DataTools";
+import LoyaltySettings from "./admin/LoyaltySettings";
 import { signOutStore } from "../lib/access";
 
 export default function Admin({ storeSlug }) {
@@ -99,6 +101,7 @@ export default function Admin({ storeSlug }) {
     { id: "qrcode", label: "الكيو ار كود", icon: QrCode },
     { id: "branches", label: "الفروع", icon: Building2 },
     { id: "team", label: "الموظفون والصلاحيات", icon: Users },
+    { id: "loyalty", label: "نظام الولاء", icon: Gift },
     { id: "white-label", label: "الهوية والنطاق", icon: Globe2 },
     { id: "subscription", label: "الباقة والاشتراك", icon: Crown },
     { id: "billing", label: "الفوترة والإضافات", icon: ReceiptText },
@@ -181,6 +184,7 @@ export default function Admin({ storeSlug }) {
           {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
           {activeTab === "branches" && <BranchManager adminData={adminData} />}
           {activeTab === "team" && <TeamManager adminData={adminData} />}
+          {activeTab === "loyalty" && <LoyaltySettings adminData={adminData} />}
           {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
           {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
           {activeTab === "billing" && <BillingAddons adminData={adminData} />}

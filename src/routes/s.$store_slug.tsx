@@ -10,22 +10,11 @@ import { OffersSlideshow } from "../components/menu/OffersSlideshow";
 import { type MenuItem } from "../lib/menu-data";
 import { formatCurrency } from "../lib/currency";
 import { useStoreData } from "../hooks/useStoreData";
+import { BrandUpdater } from "../components/BrandUpdater";
 
 export const Route = createFileRoute("/s/$store_slug")({
   head: () => ({
     meta: [
-      { title: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      {
-        name: "description",
-        content:
-          "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
-      },
-      { property: "og:title", content: "موج البحر — قائمة المأكولات البحرية الطازجة" },
-      {
-        property: "og:description",
-        content:
-          "اطلب من قائمة موج البحر: أطباق روبيان وهامور مشوي ومقليات طازجة. خصّص طبقك وأرسل طلبك على واتساب.",
-      },
       { property: "og:type", content: "restaurant.menu" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -35,7 +24,7 @@ export const Route = createFileRoute("/s/$store_slug")({
 
 function MenuPage() {
   const { store_slug } = Route.useParams();
-  const { store, categories, products, settings, payment, appearance, banners, loading, error } =
+  const { store, categories, products, settings, payment, appearance, brand_assets, banners, loading, error } =
     useStoreData(store_slug);
   const isWithinWorkingHours =
     !store?.working_hours?.length ||
@@ -141,16 +130,13 @@ function MenuPage() {
 
   return (
     <div
-      className="min-h-screen pb-32"
-      style={
-        appearance?.primaryColor
-          ? ({
-              "--primary": appearance.primaryColor,
-              "--primary-glow": appearance.primaryColor,
-            } as CSSProperties)
-          : undefined
-      }
+      className="min-h-screen bg-slate-50 font-cairo transition-colors duration-300"
+      style={{
+        "--theme-primary": appearance?.primaryColor || "#0284c7",
+      } as CSSProperties}
     >
+      <BrandUpdater assets={brand_assets || {}} isStore />
+
       <header className="relative h-52 overflow-hidden bg-surface-strong">
         <img
           src={
