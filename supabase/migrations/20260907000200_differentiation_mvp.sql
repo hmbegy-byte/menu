@@ -134,7 +134,7 @@ language sql stable security definer set search_path=public as $$
     coalesce(avg(greatest(o.total_amount-o.refunded_amount,0)) filter(where o.status<>'cancelled' and o.refunded_amount<o.total_amount),0)
   from public.campaigns c left join public.campaign_conversions cc on cc.campaign_id=c.id
   left join public.orders o on o.id=cc.order_id and o.created_at>=p_from and o.created_at<p_to
-  where c.store_id=p_store_id and public.is_store_member(p_store_id,array['admin','manager','accountant']) group by c.id,c.name,c.source order by net_sales desc;
+  where c.store_id=p_store_id and public.is_store_member(p_store_id,array['admin','manager','accountant']) group by c.id,c.name,c.source order by 5 desc;
 $$;
 grant execute on function public.campaign_metrics(uuid,timestamptz,timestamptz) to authenticated;
 
