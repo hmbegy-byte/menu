@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useAdminData } from "../hooks/useAdminData";
 import { supabase } from "../lib/supabase";
+import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -51,14 +52,15 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
 
   const findByPhone = async () => {
     setScanError("");
-    const normalized = phoneSearch.replace(/\s/g, "");
+    const normalized = normalizeLoyaltyPhone(phoneSearch);
+    if (!normalized) { setScanError('أدخل رقم جوال صالحًا.'); return; }
     const { data, error: lookupError } = await supabase
       .from("loyalty_customers")
       .select("*")
       .eq("organization_id", organization.id)
-      .eq("phone", normalized)
+      .or(`phone.eq.${normalized},contact_phone.eq.${normalized}`)
       .maybeSingle();
-    if (lookupError || !data) setScanError("لم يتم العثور على عميل بهذا الرقم.");
+    if (lookupError || !data) setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
     else setScannedCustomer(data);
   };
 
@@ -171,7 +173,7 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <UserCheck className="w-5 h-5 text-primary" />
-                    عميل موثق
+                    {scannedCustomer.name || 'عضوية العميل'}
                   </CardTitle>
                   <CardDescription className="mt-1">
                     رقم العضوية: <span className="font-mono text-foreground">{scannedCustomer.membership_number}</span>
@@ -181,6 +183,7 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
+              <p dir="ltr" className="text-center">{scannedCustomer.contact_phone || scannedCustomer.phone}</p>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="bg-slate-100 rounded-xl p-4">
                   <div className="text-sm text-muted-foreground mb-1">النقاط</div>

@@ -13,6 +13,7 @@ export function StoreFooter({ store }) {
 
   return (
     <footer className="mt-8 mb-8 mx-4 bg-surface rounded-3xl p-6 space-y-6">
+      <a href={`/s/${encodeURIComponent(store.slug)}/loyalty`} className="block rounded-2xl bg-primary p-4 text-center font-bold text-primary-foreground">برنامج الولاء — انضم أو اعرض بطاقتك</a>
       {hasHours && (
         <div>
           <h3 className="font-bold text-base flex items-center gap-2 mb-3">

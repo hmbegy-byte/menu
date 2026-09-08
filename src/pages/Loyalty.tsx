@@ -1,290 +1,110 @@
-import { useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
-import { useStoreData } from "../hooks/useStoreData";
-import { BrandUpdater } from "../components/BrandUpdater";
-import { QRCodeSVG } from "qrcode.react";
-import { Button } from "../components/ui/button";
-import { Input } from "../components/ui/input";
-import { Label } from "../components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Gift, Apple, Smartphone, LogOut } from "lucide-react";
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useStoreData } from '../hooks/useStoreData';
+import { BrandUpdater } from '../components/BrandUpdater';
+import { QRCodeSVG } from 'qrcode.react';
+import { Button } from '../components/ui/button';
+import type { Session } from '@supabase/supabase-js';
+import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
 
 export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [program, setProgram] = useState<any>(null);
+  const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
-  
-  const [loyaltyProgram, setLoyaltyProgram] = useState<any>(null);
-  const [loyaltyAccount, setLoyaltyAccount] = useState<any>(null);
-
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
-
+    if (new URLSearchParams(window.location.hash.slice(1)).has('error') || new URLSearchParams(window.location.search).has('error')) {
+      setError('لم يكتمل تسجيل الدخول. حاول مجددًا.');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     return () => subscription.unsubscribe();
   }, []);
-
   useEffect(() => {
-    if (session && store?.id) {
-      loadLoyaltyData();
-    }
-  }, [session, store?.id]);
-
-  const loadLoyaltyData = async () => {
-    if (!store?.organization_id || !session?.user?.id) return;
-    
-    // Fetch Program
-    const { data: prog } = await supabase
-      .from("loyalty_programs")
-      .select("*")
-      .eq("organization_id", store.organization_id)
-      .eq("is_active", true)
-      .maybeSingle();
-      
-    if (prog) {
-      setLoyaltyProgram(prog);
-      
-      // Fetch Account
-      let { data: acc } = await supabase
-        .from("loyalty_customers")
-        .select("*")
-        .eq("organization_id", store.organization_id)
-        .eq("auth_user_id", session.user.id)
-        .maybeSingle();
-        
-      if (!acc) {
-        // Create account
-        const { data: newAcc } = await supabase
-          .from("loyalty_customers")
-          .insert({
-            organization_id: store.organization_id,
-            auth_user_id: session.user.id,
-            phone: session.user.phone,
-          })
-          .select()
-          .single();
-        acc = newAcc;
-      }
-      setLoyaltyAccount(acc);
-    }
-  };
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      phone,
-    });
-    setLoading(false);
-    if (error) {
-      alert("Error sending OTP: " + error.message);
-    } else {
-      setOtpSent(true);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.verifyOtp({
-      phone,
-      token: otp,
-      type: "sms",
-    });
-    setLoading(false);
-    if (error) {
-      alert("Error verifying OTP: " + error.message);
-    }
-  };
-
-  const handleSignOut = () => {
-    supabase.auth.signOut();
-  };
-
-  if (storeLoading || loading) {
-    return <div className="min-h-screen grid place-items-center bg-slate-50">جاري التحميل...</div>;
+    if (!store?.organization_id) { if (!storeLoading) setLoading(false); return; }
+    let active = true;
+    setLoading(true); setAccount(null); setProgram(null);
+    (async () => {
+      try {
+        const result = await supabase.from('loyalty_programs').select('*').eq('organization_id', store.organization_id).eq('is_active', true).maybeSingle();
+        if (result.error) throw result.error;
+        if (!active) return;
+        setProgram(result.data);
+        if (result.data && session?.user.id) {
+          const membership = await supabase.from('loyalty_customers').select('*').eq('organization_id', store.organization_id).eq('auth_user_id', session.user.id).maybeSingle();
+          if (membership.error) throw membership.error;
+          if (active) setAccount(membership.data);
+        }
+      } catch { if (active) setError('تعذر تحميل بطاقة الولاء. حاول مجددًا.'); }
+      finally { if (active) setLoading(false); }
+    })();
+    return () => { active = false; };
+  }, [store?.organization_id, storeLoading, session?.user.id, refresh]);
+  async function login() {
+    setBusy(true); setError('');
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/s/${encodeURIComponent(storeSlug)}/loyalty`, queryParams: { prompt: 'select_account' } } });
+      if (error) throw error;
+    } catch { setError('تسجيل الدخول بقوقل غير متاح الآن. حاول لاحقًا.'); }
+    finally { setBusy(false); }
   }
-
-  if (!session) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
-        <BrandUpdater assets={brand_assets} isStore />
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            {store?.logo_url && (
-              <img src={store.logo_url} alt="Logo" className="w-20 h-20 mx-auto rounded-full object-cover mb-4" />
-            )}
-            <CardTitle>نظام الولاء</CardTitle>
-            <CardDescription>سجل الدخول لعرض نقاطك ومكافآتك</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {!otpSent ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>رقم الجوال</Label>
-                  <Input 
-                    type="tel" 
-                    placeholder="+966500000000" 
-                    value={phone} 
-                    onChange={(e) => setPhone(e.target.value)} 
-                    required 
-                    dir="ltr"
-                    className="text-right"
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  إرسال الرمز
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label>رمز التحقق</Label>
-                  <Input 
-                    type="text" 
-                    placeholder="123456" 
-                    value={otp} 
-                    onChange={(e) => setOtp(e.target.value)} 
-                    required 
-                    dir="ltr"
-                    className="text-center text-xl tracking-widest"
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  تحقق
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-    );
+  async function join() {
+    if (!consent || !store?.id) return;
+    const normalized = normalizeLoyaltyPhone(phone);
+    if (!normalized || name.trim().length < 2) { setError('اكتب اسمك ورقم جوال صالحًا مثل 0501234567.'); return; }
+    setBusy(true); setError('');
+    try {
+      const result = await supabase.rpc('join_loyalty_program', { p_store_id: store.id, p_consent: true, p_phone: normalized, p_name: name.trim() });
+      if (result.error) throw result.error;
+      setAccount(result.data);
+    } catch { setError('تعذر إنشاء العضوية. حاول مجددًا.'); }
+    finally { setBusy(false); }
   }
-
-  if (!loyaltyProgram) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
-        <BrandUpdater assets={brand_assets} isStore />
-        <Card className="w-full max-w-md text-center">
-          <CardContent className="pt-6">
-            <Gift className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <p>برنامج الولاء غير مفعل حالياً لهذا المطعم.</p>
-            <Button variant="outline" className="mt-4" onClick={handleSignOut}>تسجيل الخروج</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
+  async function signOut() {
+    const { error } = await supabase.auth.signOut({ scope: 'local' });
+    if (error) setError('تعذر تسجيل الخروج.');
+    else { setAccount(null); setConsent(false); }
   }
-
-  // Generate QR string with secure token
-  const qrData = JSON.stringify({
-    a: loyaltyAccount?.id, // account id
-    t: loyaltyAccount?.qr_token
-  });
-
-  return (
-    <div 
-      className="min-h-screen bg-slate-50 pb-20 transition-colors duration-300"
-      style={{
-        "--theme-primary": brand_assets?.theme_color || "#0284c7",
-      } as React.CSSProperties}
-      dir="rtl"
-    >
-      <BrandUpdater assets={brand_assets} isStore />
-      
-      <header className="bg-[var(--theme-primary)] text-white p-6 rounded-b-[2rem] shadow-md mb-6 relative">
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="absolute top-4 left-4 text-white hover:bg-white/20"
-          onClick={handleSignOut}
-        >
-          <LogOut className="w-5 h-5" />
-        </Button>
-        <div className="text-center mt-4">
-          {store?.logo_url ? (
-            <img src={store.logo_url} alt="Logo" className="w-20 h-20 mx-auto rounded-full object-cover border-4 border-white/20 mb-3" />
-          ) : (
-            <div className="w-20 h-20 mx-auto rounded-full bg-white/20 flex items-center justify-center mb-3">
-              <Gift className="w-8 h-8 text-white" />
-            </div>
-          )}
-          <h1 className="text-2xl font-bold">{store?.name}</h1>
-          <p className="opacity-90">برنامج الولاء والمكافآت</p>
-        </div>
-      </header>
-
-      <main className="px-4 max-w-md mx-auto space-y-6">
-        {/* Balance Card */}
-        <Card className="border-0 shadow-lg overflow-hidden relative">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--theme-primary)] opacity-10 rounded-bl-full -z-10" />
-          <CardContent className="p-6 text-center">
-            <h2 className="text-sm font-semibold text-muted-foreground mb-2">
-              {loyaltyProgram.program_type === 'points' ? 'رصيد النقاط' : 'أختامك الحالية'}
-            </h2>
-            <div className="text-5xl font-black text-[var(--theme-primary)] flex items-center justify-center gap-2">
-              {loyaltyAccount?.points_balance || 0}
-              {loyaltyProgram.program_type === 'points' && <span className="text-lg text-muted-foreground font-normal">نقطة</span>}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* QR Code */}
-        <Card className="border-0 shadow-sm">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-lg">بطاقة الولاء الخاصة بك</CardTitle>
-            <CardDescription>امسح هذا الرمز عند الكاشير</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center">
-            <div className="bg-white p-4 rounded-2xl shadow-inner mb-6">
-              {loyaltyAccount && (
-                <QRCodeSVG
-                  value={qrData}
-                  size={200}
-                  level="H"
-                  includeMargin={false}
-                  imageSettings={
-                    store?.logo_url ? {
-                      src: store.logo_url,
-                      x: undefined,
-                      y: undefined,
-                      height: 40,
-                      width: 40,
-                      excavate: true,
-                    } : undefined
-                  }
-                />
-              )}
-            </div>
-
-            {(loyaltyProgram.wallet_settings?.apple_enabled || loyaltyProgram.wallet_settings?.samsung_enabled) && <div className="grid grid-cols-2 gap-3 w-full">
-              {loyaltyProgram.wallet_settings?.apple_enabled && (
-              <Button variant="outline" className="flex gap-2">
-                <Apple className="w-4 h-4" />
-                Apple Wallet
-              </Button>
-              )}
-              {loyaltyProgram.wallet_settings?.samsung_enabled && (
-              <Button variant="outline" className="flex gap-2">
-                <Smartphone className="w-4 h-4" />
-                Samsung Wallet
-              </Button>
-              )}
-            </div>}
-          </CardContent>
-        </Card>
-      </main>
+  return <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
+    <BrandUpdater assets={brand_assets} isStore />
+    <div className="mx-auto max-w-md space-y-5">
+      <a href={`/s/${encodeURIComponent(storeSlug)}`} className="text-primary underline">العودة إلى قائمة المطعم</a>
+      <section className="space-y-5 rounded-3xl border bg-card p-6 text-center text-card-foreground">
+        {store?.logo_url && <img src={store.logo_url} alt={store.name} className="mx-auto h-20 w-20 rounded-full object-cover" />}
+        <h1 className="text-2xl font-bold">{store?.name} — الولاء والمكافآت</h1>
+        {error && <p role="alert" className="text-destructive">{error}</p>}
+        {storeLoading || loading ? <p role="status">جاري التحميل…</p> : !store ? <p>تعذر العثور على المطعم.</p> : !program ? <p>برنامج الولاء غير مفعل حاليًا لهذا المطعم.</p> : !session ? <>
+          <p>ادخل بحساب قوقل لعرض بطاقتك أو الانضمام إلى البرنامج.</p>
+          <Button onClick={login} disabled={busy} className="w-full">المتابعة باستخدام Google</Button>
+          <p className="text-sm text-muted-foreground">لا تحتاج كلمة مرور جديدة أو رسالة جوال.</p>
+        </> : !account ? <>
+          <p>مرحبًا {session.user.user_metadata?.full_name || session.user.email}</p>
+          <label className="block text-start">اسمك لدى المطعم<input className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground" value={name} maxLength={100} onChange={e => setName(e.target.value)} autoComplete="name" /></label>
+          <label className="block text-start">رقم الجوال<input type="tel" dir="ltr" className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground" value={phone} maxLength={20} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" autoComplete="tel" /></label>
+          <label className="flex items-start gap-3 text-start"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1" /><span>أوافق على إنشاء عضوية لدى {store.name} وحفظ اسمي ومعرّف حسابي لإدارة نقاطي. الانضمام لا يعني الموافقة على الرسائل التسويقية. <a href="/legal/privacy" className="text-primary underline">سياسة الخصوصية</a></span></label>
+          <Button onClick={join} disabled={!consent || !name.trim() || !phone.trim() || busy} className="w-full">{busy ? 'جارٍ إنشاء العضوية…' : 'انضم مجانًا'}</Button>
+        </> : <>
+          <p>{account.name || 'بطاقتك'}</p>
+          <p dir="ltr">{account.contact_phone || account.phone}</p>
+          <p className="text-5xl font-bold text-primary">{program.program_type === 'stamps' ? account.stamps_balance : account.points_balance}</p>
+          <p>{program.program_type === 'stamps' ? program.stamps_name : program.points_name}</p>
+          {program.program_type === 'hybrid' && <p>{account.stamps_balance} {program.stamps_name}</p>}
+          <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG value={JSON.stringify({ a: account.id, t: account.qr_token })} size={200} level="H" /></div>
+          <p>اعرض هذا الرمز لموظف المطعم لإضافة النقاط أو استبدالها.</p>
+          <p className="text-sm">رقم العضوية: {account.membership_number}</p>
+          <details className="rounded-xl border p-4 text-start"><summary className="cursor-pointer font-bold">حفظ البطاقة على شاشة الجوال</summary><p className="mt-3">آيفون: افتح الصفحة في Safari ثم المشاركة ← إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">أندرويد: من قائمة المتصفح اختر إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">يمكنك فتح البطاقة من جهاز آخر بتسجيل الدخول بنفس حساب قوقل.</p></details>
+        </>}
+        <Button variant="outline" onClick={() => { setError(''); setRefresh(n => n + 1); }} disabled={loading}>تحديث</Button>
+        {session && <Button variant="ghost" onClick={signOut}>تسجيل الخروج</Button>}
+      </section>
     </div>
-  );
+  </main>;
 }
