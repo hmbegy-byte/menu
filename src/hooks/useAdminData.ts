@@ -371,7 +371,15 @@ export function useAdminData(storeSlug: string) {
     }
     delete saved.id;
     const { data, error: inviteError } = await supabase.rpc('create_staff_invitation', {p_store_id:saved.store_id,p_email:saved.email,p_role:saved.role});
-    if (inviteError) throw inviteError;
+    if (inviteError) {
+      const detail = inviteError.message || '';
+      const message = /Not authorized|permission denied/i.test(detail)
+        ? 'حسابك لا يملك صلاحية دعوة موظف لهذا الفرع.'
+        : /Invalid invitation/i.test(detail)
+          ? 'راجع البريد الإلكتروني والدور المحدد.'
+          : `تعذر إنشاء الدعوة (${inviteError.code || 'NETWORK'}): ${detail || 'تحقق من الاتصال وأعد المحاولة.'}`;
+      throw new Error(message);
+    }
     await load(true);
     return data;
   };
