@@ -36,8 +36,8 @@ export function useAdminData(storeSlug: string) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       if (!(await hasStoreAccess(storeSlug, ["admin"]))) throw new Error("AUTH_REQUIRED");
@@ -145,10 +145,12 @@ export function useAdminData(storeSlug: string) {
   useEffect(() => {
     load();
     const listener = () => {
-      if (isMockMode) load();
+      load(true);
     };
     window.addEventListener("storage", listener);
-    return () => window.removeEventListener("storage", listener);
+    window.addEventListener('focus',listener);
+    const timer=window.setInterval(listener,60000);
+    return () => {window.removeEventListener("storage", listener);window.removeEventListener('focus',listener);window.clearInterval(timer);};
   }, [load]);
   useEffect(() => {
     if (isMockMode || !state.store?.id) return;
@@ -157,7 +159,7 @@ export function useAdminData(storeSlug: string) {
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "orders", filter: `store_id=eq.${state.store.id}` },
-        load,
+        () => load(true),
       )
       .subscribe();
     return () => {
@@ -367,11 +369,7 @@ export function useAdminData(storeSlug: string) {
       return saved;
     }
     delete saved.id;
-    const { data, error: inviteError } = await supabase
-      .from("staff_invitations")
-      .insert(saved)
-      .select()
-      .single();
+    const { data, error: inviteError } = await supabase.rpc('create_staff_invitation', {p_store_id:saved.store_id,p_email:saved.email,p_role:saved.role});
     if (inviteError) throw inviteError;
     await load();
     return data;
@@ -455,7 +453,7 @@ export function useAdminData(storeSlug: string) {
     toggleSubscriptionAddon,
     resolveIncident,
     plan,
-    features: plan.features,
+    features: !isMockMode && !['active','trial'].includes(state.subscription?.status) ? [] : (state.subscription?.plans?.features || plan.features),
     setCategories: setPart("categories"),
     setProducts: setPart("products"),
     setOffers: setPart("offers"),

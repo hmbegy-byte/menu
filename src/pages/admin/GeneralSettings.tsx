@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import WorkingHoursEditor, { normalizeHours } from './WorkingHoursEditor';
 import { Settings, MessageCircle, AlertCircle, TimerReset } from "lucide-react";
 
 export default function GeneralSettings({ adminData }) {
@@ -17,7 +18,7 @@ export default function GeneralSettings({ adminData }) {
   });
 
   const [workingHours, setWorkingHours] = useState(
-    store?.working_hours || [
+    normalizeHours(store?.working_hours) || [
       { id: 0, dayName: "الأحد", isOpen: true, from: "12:00", to: "23:59" },
       { id: 1, dayName: "الإثنين", isOpen: true, from: "12:00", to: "23:59" },
       { id: 2, dayName: "الثلاثاء", isOpen: true, from: "12:00", to: "23:59" },
@@ -38,6 +39,7 @@ export default function GeneralSettings({ adminData }) {
 
   const saveToLocal = async (e) => {
     e.preventDefault();
+    if (workingHours.some(day => day.isOpen && (!day.from || !day.to || day.from===day.to))) { alert('راجع أوقات الفتح والإغلاق: يجب أن تكون مختلفة.'); return; }
     setIsSaving(true);
     try {
       await saveStoreSection("settings", formData);
@@ -197,53 +199,7 @@ export default function GeneralSettings({ adminData }) {
         </div>
 
         {/* Working Hours */}
-        <div className="pt-4 border-t border-gray-100">
-          <h3 className="font-bold text-gray-900 mb-4">أوقات العمل الأسبوعية</h3>
-          <div className="space-y-3">
-            {workingHours.map((day) => (
-              <div
-                key={day.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-200 gap-3"
-              >
-                <div className="flex items-center gap-3 w-32">
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={day.isOpen}
-                      onChange={(e) => handleWorkingHourChange(day.id, "isOpen", e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                  </label>
-                  <span className="font-bold text-gray-900">{day.dayName}</span>
-                </div>
-
-                {day.isOpen ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-gray-500">من</span>
-                    <input
-                      type="time"
-                      value={day.from}
-                      onChange={(e) => handleWorkingHourChange(day.id, "from", e.target.value)}
-                      className="border border-gray-300 rounded-lg p-1.5 outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                    />
-                    <span className="text-sm text-gray-500 mx-1">إلى</span>
-                    <input
-                      type="time"
-                      value={day.to}
-                      onChange={(e) => handleWorkingHourChange(day.id, "to", e.target.value)}
-                      className="border border-gray-300 rounded-lg p-1.5 outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                    />
-                  </div>
-                ) : (
-                  <div className="text-sm font-bold text-red-500 flex-1 text-center sm:text-right px-4">
-                    مغلق
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
+        <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} timezone={store.timezone} />
 
         <div className="pt-4 flex justify-end border-t border-gray-100">
           <button

@@ -3,21 +3,21 @@ import { MailPlus, Trash2, Users } from "lucide-react";
 
 const roleNames = {
   admin: "مدير",
-  manager: "مشرف",
-  cashier: "كاشير",
   kitchen: "مطبخ",
-  accountant: "محاسب",
 };
 
 export default function TeamManager({ adminData }) {
   const [form, setForm] = useState({ email: "", role: "kitchen", store_id: adminData.store.id });
   const [message, setMessage] = useState("");
+  const [inviteLink,setInviteLink]=useState('');
   const submit = async (event) => {
     event.preventDefault();
     try {
-      await adminData.inviteTeamMember(form);
+      const invitation = await adminData.inviteTeamMember(form);
+      const branch=adminData.branches.find(b=>b.id===form.store_id)||adminData.store;
+      setInviteLink(invitation.token?`${window.location.origin}/s/${encodeURIComponent(branch.slug)}/loyalty?invite=${encodeURIComponent(invitation.token)}`:'');
       setForm({ ...form, email: "" });
-      setMessage("تم إنشاء الدعوة. اربط إرسال البريد بمزود الرسائل عند الإطلاق.");
+      setMessage('تم إنشاء رابط دعوة صالح 7 أيام. انسخه وأرسله للموظف؛ لا يُرسل بريد تلقائيًا.');
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "تعذر إنشاء الدعوة");
     }
@@ -81,9 +81,10 @@ export default function TeamManager({ adminData }) {
           </p>
         )}
         <button className="mt-4 rounded-xl bg-purple-600 px-5 py-3 font-bold text-white">
-          إرسال الدعوة
+          إنشاء رابط الدعوة
         </button>
       </form>
+      {inviteLink&&<div className="space-y-3 rounded-xl border p-4"><label className="block">رابط الدعوة<input readOnly value={inviteLink} dir="ltr" className="mt-2 w-full rounded-lg border bg-background p-3" /></label><button className="rounded-lg border p-3" onClick={async()=>{try{await navigator.clipboard.writeText(inviteLink);setMessage('تم نسخ الرابط');}catch{setMessage('انسخ الرابط يدويًا من الحقل');}}}>نسخ الرابط</button></div>}
       <div className="overflow-hidden rounded-2xl border bg-white">
         {adminData.team.length === 0 ? (
           <p className="p-8 text-center text-gray-500">لا توجد دعوات أو أعضاء بعد.</p>
@@ -102,6 +103,7 @@ export default function TeamManager({ adminData }) {
                   {member.status === "pending" ? "بانتظار القبول" : "نشط"}
                 </p>
               </div>
+              {member.status === "pending" && <button className="rounded-lg border p-2" onClick={async()=>{try{const invitation=await adminData.inviteTeamMember({email:member.email,role:member.role,store_id:member.store_id});const branch=adminData.branches.find(b=>b.id===member.store_id)||adminData.store;setInviteLink(`${window.location.origin}/s/${encodeURIComponent(branch.slug)}/loyalty?invite=${encodeURIComponent(invitation.token)}`);setMessage('تم تجديد الرابط؛ الرابط القديم لم يعد صالحًا.');}catch{setMessage('تعذر تجديد الدعوة');}}}>تجديد رابط الدعوة</button>}
               {member.status === "pending" && (
                 <button
                   onClick={() => adminData.removeTeamInvitation(member.id)}

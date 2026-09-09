@@ -6,6 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '../components/ui/button';
 import type { Session } from '@supabase/supabase-js';
 import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
+import AcceptInvitation from './AcceptInvitation';
 
 export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
@@ -19,7 +20,9 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
   const [refresh, setRefresh] = useState(0);
+  const [invitation,setInvitation]=useState('');
   useEffect(() => {
+    setInvitation(new URLSearchParams(window.location.search).get('invite') || '');
     if (new URLSearchParams(window.location.hash.slice(1)).has('error') || new URLSearchParams(window.location.search).has('error')) {
       setError('لم يكتمل تسجيل الدخول. حاول مجددًا.');
       window.history.replaceState(null, '', window.location.pathname);
@@ -73,6 +76,7 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
     if (error) setError('تعذر تسجيل الخروج.');
     else { setAccount(null); setConsent(false); }
   }
+  if (invitation) return <AcceptInvitation token={invitation} storeSlug={storeSlug} />;
   return <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
     <BrandUpdater assets={brand_assets} isStore />
     <div className="mx-auto max-w-md space-y-5">

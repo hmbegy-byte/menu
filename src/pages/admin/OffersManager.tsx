@@ -60,8 +60,8 @@ export default function OffersManager({ adminData }) {
       await saveEntity(
         "offers",
         editingOffer
-          ? { ...formData, image_url: finalImageUrl, id: editingOffer.id }
-          : { ...formData, image_url: finalImageUrl },
+          ? { ...formData, product_id: formData.product_id || null, image_url: finalImageUrl, id: editingOffer.id }
+          : { ...formData, product_id: formData.product_id || null, image_url: finalImageUrl },
       );
       setIsModalOpen(false);
     } catch (err) {
@@ -92,6 +92,7 @@ export default function OffersManager({ adminData }) {
         image_url: banner.image_url || "",
         title: banner.title || "",
         subtitle: banner.subtitle || "",
+        product_id: banner.product_id || "",
       });
     } else {
       setEditingBanner(null);
@@ -117,9 +118,10 @@ export default function OffersManager({ adminData }) {
       await saveEntity(
         "banners",
         editingBanner
-          ? { ...bannerForm, image_url: finalImageUrl, id: editingBanner.id, active: true }
+          ? { ...bannerForm, product_id: bannerForm.product_id || null, image_url: finalImageUrl, id: editingBanner.id, active: true }
           : {
               ...bannerForm,
+              product_id: bannerForm.product_id || null,
               image_url: finalImageUrl,
               active: true,
               display_order: banners.length + 1,
@@ -315,6 +317,8 @@ export default function OffersManager({ adminData }) {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <label className="block">الأصناف المشمولة<select value={formData.product_id || ''} onChange={e=>setFormData({...formData,product_id:e.target.value})} className="mt-1 w-full rounded-xl border bg-background p-3"><option value="">كل الأصناف</option>{adminData.products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+              <p className="text-sm">يُطبّق أعلى خصم متاح تلقائيًا على سعر الصنف دون خصم الإضافات.</p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">عنوان العرض</label>
                 <input
@@ -423,6 +427,7 @@ export default function OffersManager({ adminData }) {
             </div>
 
             <form onSubmit={handleBannerSubmit} className="p-6 space-y-4">
+              <label className="block">الصنف المرتبط بزر الطلب<select value={bannerForm.product_id || ''} onChange={e=>setBannerForm({...bannerForm,product_id:e.target.value})} className="mt-1 w-full rounded-xl border bg-background p-3"><option value="">تصفح الأصناف</option>{adminData.products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   عنوان اللافتة

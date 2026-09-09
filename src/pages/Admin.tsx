@@ -40,6 +40,7 @@ import AppearanceSettings from "./admin/AppearanceSettings";
 import GeneralSettings from "./admin/GeneralSettings";
 import PaymentSettings from "./admin/PaymentSettings";
 import QRCodeGenerator from "./admin/QRCodeGenerator";
+import { ADMIN_FEATURES } from '../lib/adminFeatures';
 import BranchManager from "./admin/BranchManager";
 import TeamManager from "./admin/TeamManager";
 import WhiteLabelSettings from "./admin/WhiteLabelSettings";
@@ -130,7 +131,7 @@ export default function Admin({ storeSlug }) {
         </div>
 
         <nav className="flex-1 p-4 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
-          {navItems.map((item) => {
+          {navItems.filter(item => !ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id])).map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -166,6 +167,7 @@ export default function Admin({ storeSlug }) {
       {/* Main Content Area */}
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
+          {ADMIN_FEATURES[activeTab] && !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p> : <>
           {activeTab === "overview" && (
             <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
           )}
@@ -201,6 +203,7 @@ export default function Admin({ storeSlug }) {
           {activeTab === "billing" && <BillingAddons adminData={adminData} />}
           {activeTab === "health" && <OperationalHealth adminData={adminData} />}
           {activeTab === "data" && <DataTools adminData={adminData} />}
+          </>}
         </div>
       </main>
     </div>

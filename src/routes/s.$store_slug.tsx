@@ -12,6 +12,8 @@ import { formatCurrency } from "../lib/currency";
 import { useStoreData } from "../hooks/useStoreData";
 import { BrandUpdater } from "../components/BrandUpdater";
 import { supabase } from "../lib/supabase";
+import { isOpenAt } from '../lib/workingHours.mjs';
+import { discountedPrice } from '../lib/offers.mjs';
 
 export const Route = createFileRoute("/s/$store_slug")({
   head: () => ({
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/s/$store_slug")({
 
 function MenuPage() {
   const { store_slug } = Route.useParams();
-  const { store, categories, products, settings, payment, appearance, brand_assets, banners, loading, error } =
+  const { store, categories, products, offers, settings, payment, appearance, brand_assets, banners, loading, error } =
     useStoreData(store_slug);
   const isWithinWorkingHours =
     !store?.working_hours?.length ||
@@ -41,18 +43,7 @@ function MenuPage() {
       const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
         part("weekday") || "",
       );
-      const day = store.working_hours.find((entry) => Number(entry.id) === dayIndex);
-      if (!day || !day.isOpen) return false;
-      const minutes = Number(part("hour")) * 60 + Number(part("minute"));
-      const toMinutes = (value) => {
-        const [hours, mins] = String(value || "00:00")
-          .split(":")
-          .map(Number);
-        return hours * 60 + mins;
-      };
-      const from = toMinutes(day.from);
-      const to = toMinutes(day.to);
-      return from <= to ? minutes >= from && minutes <= to : minutes >= from || minutes <= to;
+      return isOpenAt(store.working_hours, dayIndex, Number(part('hour')) * 60 + Number(part('minute')));
     })();
   const pauseEndsAt = settings?.pausedUntil ? new Date(settings.pausedUntil) : null;
   const isTemporarilyPaused = Boolean(pauseEndsAt && pauseEndsAt.getTime() > Date.now());
@@ -106,13 +97,13 @@ function MenuPage() {
         category: p.category_id,
         name: p.name,
         description: p.description,
-        price: p.price,
+        price: discountedPrice(p, offers),
         image: p.image_url || "https://images.unsplash.com/photo-1559286699-2321287c8005?w=800",
         tag: p.tag || "",
         groups: groups,
       };
     });
-  }, [products]);
+  }, [products, offers]);
 
   useEffect(() => {
     const requestedProduct = query.get("product");
@@ -206,7 +197,13 @@ function MenuPage() {
         </div>
       </header>
 
-      <OffersSlideshow banners={banners} />
+      <OffersSlideshow banners={banners} onOrder={id => { const item = mappedProducts.find(p => p.id===id); if (item && isAcceptingOrders) { setActiveCategory(item.category); setCustomizing(item); } else document.getElementById('store-offers')?.scrollIntoView({behavior:'smooth'}); }} />
+      <section id="store-offers" className="mx-4 mt-4 space-y-3" aria-label="العروض والخصومات">
+        {offers.filter(o => o.active).map(offer => <article key={offer.id} className="rounded-2xl border bg-surface p-4">
+          <h2 className="text-lg font-bold">{offer.title}</h2><p className="text-primary">خصم {offer.discount_percentage}% {offer.product_id ? 'على الصنف المحدد' : 'على الأصناف'} — يطبق تلقائيًا، ولا يشمل الإضافات.</p>
+          <div className="mt-3 flex flex-wrap gap-2">{mappedProducts.filter(p => !offer.product_id || p.id===offer.product_id).map(p => <button disabled={!isAcceptingOrders} key={p.id} onClick={() => { setActiveCategory(p.category); setCustomizing(p); }} className="rounded-xl border px-3 py-2">{p.name} · {formatCurrency(p.price,currency)} — إضافة</button>)}</div>
+        </article>)}
+      </section>
 
       {!isAcceptingOrders && (
         <div className="bg-destructive/10 text-destructive p-3 text-center text-sm font-bold mx-4 mt-4 rounded-xl">
