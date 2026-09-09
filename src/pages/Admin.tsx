@@ -119,9 +119,10 @@ export default function Admin({ storeSlug }) {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row" dir="rtl">
+    <div className="admin-shell min-h-screen bg-background text-foreground flex flex-col md:flex-row" dir="rtl">
+      <a href="#admin-content" className="skip-link">انتقل إلى المحتوى</a>
       {/* Sidebar Navigation */}
-      <aside className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-l border-gray-200 flex flex-col sticky top-0 md:h-screen z-20 shadow-sm">
+      <aside className="w-full md:w-64 md:shrink-0 bg-card border-b md:border-b-0 md:border-l border-border flex flex-col md:sticky top-0 md:h-dvh z-20">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <div>
             <h1 className="font-bold text-xl text-gray-900">لوحة الإدارة</h1>
@@ -130,13 +131,20 @@ export default function Admin({ storeSlug }) {
           {/* Mobile menu toggle could go here if needed */}
         </div>
 
-        <nav className="flex-1 p-4 flex flex-row md:flex-col gap-2 overflow-x-auto md:overflow-y-auto no-scrollbar">
+        <div className="px-4 pb-4 md:hidden">
+          <label htmlFor="admin-section" className="mb-2 block text-sm font-bold">القسم الحالي</label>
+          <select id="admin-section" value={activeTab} onChange={event=>setActiveTab(event.target.value)} className="w-full min-h-12 rounded-xl border border-input bg-background px-3 text-foreground">
+            {navItems.filter(item=>!ADMIN_FEATURES[item.id]||adminData.features.includes(ADMIN_FEATURES[item.id])).map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+          </select>
+        </div>
+        <nav aria-label="أقسام إدارة المطعم" className="hidden md:flex flex-1 min-h-0 p-4 flex-col gap-2 overflow-y-auto">
           {navItems.filter(item => !ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id])).map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
+                aria-current={activeTab === item.id ? 'page' : undefined}
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors whitespace-nowrap ${
                   activeTab === item.id
                     ? "bg-purple-50 text-purple-700 font-bold"
@@ -150,7 +158,8 @@ export default function Admin({ storeSlug }) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-100 hidden md:block">
+        <div className="px-4 py-2 md:p-4 border-t border-border">
+          <a href={`/s/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 rounded-xl text-primary hover:bg-muted"><Store size={20} aria-hidden="true"/>معاينة المتجر<span className="sr-only">في نافذة جديدة</span></a>
           <button
             onClick={async () => {
               await signOutStore();
@@ -165,7 +174,7 @@ export default function Admin({ storeSlug }) {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
+      <main id="admin-content" tabIndex={-1} className="flex-1 min-w-0 p-4 md:p-8">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
           {ADMIN_FEATURES[activeTab] && !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p> : <>
           {activeTab === "overview" && (
