@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useUnsavedForm } from '../../hooks/useUnsavedForm';
 import { CreditCard, Banknote, Landmark, ShieldCheck, WalletCards } from "lucide-react";
 
 export default function PaymentSettings({ adminData }) {
@@ -16,6 +17,7 @@ export default function PaymentSettings({ adminData }) {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const {markSaved}=useUnsavedForm(formData);
 
   const saveToLocal = async (e) => {
     e.preventDefault();
@@ -30,6 +32,7 @@ export default function PaymentSettings({ adminData }) {
     setIsSaving(true);
     try {
       await saveStoreSection("payment", formData);
+      markSaved();
 
       alert("تم حفظ إعدادات الدفع بنجاح");
     } catch (err) {

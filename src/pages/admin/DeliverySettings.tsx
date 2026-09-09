@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useUnsavedForm } from '../../hooks/useUnsavedForm';
 import { Clock3, MapPin, Plus, Trash2, Truck } from "lucide-react";
 
 export default function DeliverySettings({ adminData }) {
   const [settings, setSettings] = useState(adminData.settings || {});
+  const {markSaved}=useUnsavedForm(settings);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const zones = settings.deliveryZones || [];
@@ -18,6 +20,7 @@ export default function DeliverySettings({ adminData }) {
     setMessage("");
     try {
       await adminData.saveStoreSection("settings", settings);
+      markSaved();
       setMessage("تم حفظ إعدادات التوصيل.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "تعذر الحفظ");

@@ -141,7 +141,15 @@ export default function Admin({ storeSlug }) {
           </select>
         </div>
         <nav aria-label="أقسام إدارة المطعم" className="hidden md:flex flex-1 min-h-0 p-4 flex-col gap-2 overflow-y-auto">
-          {navItems.filter(item => !ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id])).map((item) => {
+          {[
+            {name:'التشغيل اليومي',ids:['overview','orders','delivery','health']},
+            {name:'القائمة والمنتجات',ids:['categories','products','addons','offers','qrcode']},
+            {name:'العملاء والتقارير',ids:['customers','reports','campaigns','loyalty','retention','operations']},
+            {name:'الإعدادات والحساب',ids:['profile','appearance','settings','payment','branches','team','white-label','subscription','billing','data']},
+          ].map(group=><details key={group.name} open={group.ids.includes(activeTab)} className="border-b border-border pb-2">
+          <summary className="cursor-pointer py-3 text-sm font-bold text-muted-foreground">{group.name}</summary>
+          <div className="flex flex-col gap-1">
+          {navItems.filter(item => group.ids.includes(item.id) && (!ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id]))).map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -159,6 +167,7 @@ export default function Admin({ storeSlug }) {
               </button>
             );
           })}
+          </div></details>)}
         </nav>
 
         <div className="px-4 py-2 md:p-4 border-t border-border">

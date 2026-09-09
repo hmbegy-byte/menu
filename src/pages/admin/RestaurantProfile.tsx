@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useUnsavedForm } from '../../hooks/useUnsavedForm';
 import { Store, Phone, Upload, Image as ImageIcon, Landmark, ShieldCheck } from "lucide-react";
 import { uploadStoreImage } from "../../lib/uploadImage";
 
@@ -28,6 +29,7 @@ export default function RestaurantProfile({ adminData }) {
   const [logoFile, setLogoFile] = useState(null);
   const [coverFile, setCoverFile] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
+  const {markSaved}=useUnsavedForm({formData,logo:logoFile?.name,cover:coverFile?.name});
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -73,6 +75,7 @@ export default function RestaurantProfile({ adminData }) {
       }
 
       await updateStore(updates);
+      markSaved();
       alert("تم حفظ معلومات المطعم بنجاح");
     } catch (err) {
       alert("حدث خطأ أثناء الحفظ");
