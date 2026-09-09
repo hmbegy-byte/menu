@@ -231,6 +231,7 @@ export default function Kitchen({ storeSlug }) {
         )}
 
         {/* Board */}
+        {!['online','demo'].includes(connectionStatus) && <div role="alert" className="m-4 rounded-xl border border-red-400 bg-red-50 p-4 font-bold text-red-700">الاتصال المباشر غير متاح. قد تتأخر الطلبات والتحديثات؛ تحقق من الاتصال قبل الاعتماد على الشاشة.</div>}
         <main className="flex-1 p-4 grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
           {/* Column 1: Pending */}
           <div className="min-w-0 flex flex-col gap-3">

@@ -33,14 +33,14 @@ export default function OrderCard({ order, store, onUpdateStatus, onPrint, onDel
           <span
             className={`mr-2 rounded-full px-2 py-1 font-bold ${elapsed >= lateAt ? "bg-red-600 text-white" : elapsed >= warningAt ? "bg-amber-500 text-white" : "bg-gray-100"}`}
           >
-            {elapsed} د
+            {elapsed} د {['pending','preparing'].includes(order.status) && (elapsed>=lateAt ? '— متأخر' : elapsed>=warningAt ? '— يحتاج متابعة' : '')}
           </span>
         </div>
       </div>
 
       <div className="space-y-1 text-sm">
         <div className="font-semibold text-gray-800">{order.customer_name}</div>
-        <div className="text-gray-600">{order.customer_phone}</div>
+        <div className="text-gray-600" dir="ltr">{order.customer_phone}</div>
         <div className="flex gap-2 items-center mt-2">
           <span
             className={`px-2 py-1 rounded text-xs font-bold ${order.order_type === "delivery" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"}`}

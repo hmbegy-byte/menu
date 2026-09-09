@@ -76,6 +76,7 @@ export function CartSheet({
       ? Number(selectedZone?.etaMinutes || 40)
       : Number(settings.pickupEtaMinutes || 20);
   const total = subtotal + tax + deliveryFee;
+  const minimum = Math.max(Number(settings.minOrderValue || 0), form.orderType === 'delivery' ? Number(selectedZone?.minOrder || 0) : 0);
   const canCash = payment.cashOnDelivery !== false;
   const canBank = Boolean(payment.bankTransfer);
 
@@ -502,6 +503,8 @@ export function CartSheet({
               )}
             </div>
             <div className="border-t px-4 py-4">
+              {minimum > 0 && <p role="status" className="mb-3 text-sm">الحد الأدنى: {formatCurrency(minimum,currency)}{subtotal < minimum ? ` — أضف ${formatCurrency(minimum-subtotal,currency)} لإكمال الطلب` : ' — مستوفى'}</p>}
+              {form.orderType==='delivery' && deliveryZones.length>0 && !selectedZone && <p className="mb-3 text-sm text-destructive">اختر منطقة التوصيل لاحتساب الرسوم والإجمالي النهائي.</p>}
               <div className="mb-3 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>المجموع</span>
@@ -525,7 +528,7 @@ export function CartSheet({
                 </div>
               </div>
               <button
-                disabled={submitting || !lines.length}
+                disabled={submitting || !lines.length || subtotal < minimum || (form.orderType==='delivery' && deliveryZones.length>0 && !selectedZone)}
                 className="gradient-primary w-full rounded-2xl py-3.5 font-extrabold text-primary-foreground disabled:opacity-50"
               >
                 {submitting ? "جارٍ إرسال الطلب…" : "تأكيد الطلب"}

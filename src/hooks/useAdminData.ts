@@ -246,10 +246,11 @@ export function useAdminData(storeSlug: string) {
       .select()
       .single();
     if (saveError) throw saveError;
-    await load();
+    await load(true);
     return data;
   };
   const deleteEntity = async (collection: keyof typeof tables, id: string) => {
+    if (!window.confirm('هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن الحذف من هذه الشاشة.')) return;
     if (isMockMode) {
       const next = (state[collection] || []).filter((x) => x.id !== id);
       writeDemo(collection, next);
@@ -262,7 +263,7 @@ export function useAdminData(storeSlug: string) {
       .eq("id", id)
       .eq("store_id", state.store.id);
     if (deleteError) throw deleteError;
-    await load();
+    await load(true);
   };
   const importProducts = async (products: any[]) => {
     if (!products.length) return 0;
@@ -282,7 +283,7 @@ export function useAdminData(storeSlug: string) {
       .insert(payload)
       .select("id");
     if (importError) throw importError;
-    await load();
+    await load(true);
     return data?.length || 0;
   };
   const saveBranch = async (branch: any) => {
@@ -329,7 +330,7 @@ export function useAdminData(storeSlug: string) {
       .select()
       .single();
     if (saveError) throw saveError;
-    await load();
+    await load(true);
     return data;
   };
   const deleteBranch = async (id: string) => {
@@ -350,7 +351,7 @@ export function useAdminData(storeSlug: string) {
       .eq("id", id)
       .eq("organization_id", state.store.organization_id);
     if (deleteError) throw deleteError;
-    await load();
+    await load(true);
   };
   const inviteTeamMember = async (invitation: any) => {
     const saved = {
@@ -371,7 +372,7 @@ export function useAdminData(storeSlug: string) {
     delete saved.id;
     const { data, error: inviteError } = await supabase.rpc('create_staff_invitation', {p_store_id:saved.store_id,p_email:saved.email,p_role:saved.role});
     if (inviteError) throw inviteError;
-    await load();
+    await load(true);
     return data;
   };
   const removeTeamInvitation = async (id: string) => {
@@ -387,7 +388,7 @@ export function useAdminData(storeSlug: string) {
       .eq("id", id)
       .eq("organization_id", state.store.organization_id);
     if (removeError) throw removeError;
-    await load();
+    await load(true);
   };
   const toggleSubscriptionAddon = async (addon: any) => {
     const existing = (state.subscriptionAddons || []).find((item: any) => item.code === addon.code);
@@ -414,7 +415,7 @@ export function useAdminData(storeSlug: string) {
       : supabase.from("subscription_addons").insert(payload);
     const { error: addonError } = await query;
     if (addonError) throw addonError;
-    await load();
+    await load(true);
   };
   const resolveIncident = async (id: string) => {
     if (isMockMode) {
@@ -432,7 +433,7 @@ export function useAdminData(storeSlug: string) {
       .eq("id", id)
       .eq("store_id", state.store.id);
     if (incidentError) throw incidentError;
-    await load();
+    await load(true);
   };
   const planId = state.subscription?.plans?.code || state.subscription?.plan_id || "starter";
   const plan = resolvePlan(planId);

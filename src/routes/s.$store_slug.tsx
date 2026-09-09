@@ -14,6 +14,7 @@ import { BrandUpdater } from "../components/BrandUpdater";
 import { supabase } from "../lib/supabase";
 import { isOpenAt } from '../lib/workingHours.mjs';
 import { discountedPrice } from '../lib/offers.mjs';
+import { brandText } from '../lib/brandContrast.mjs';
 
 export const Route = createFileRoute("/s/$store_slug")({
   head: () => ({
@@ -163,7 +164,7 @@ function MenuPage() {
       style={{
         "--theme-primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
         "--primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
-        "--primary-foreground": '#ffffff',
+        "--primary-foreground": brandText((store.slug==='demo' && ['#9333ea','#0284c7'].includes(appearance?.primaryColor)) ? '#70452f' : appearance?.primaryColor || '#70452f'),
       } as CSSProperties}
     >
       <BrandUpdater assets={brand_assets || {}} isStore />

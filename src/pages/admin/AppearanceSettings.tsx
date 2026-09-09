@@ -1,8 +1,10 @@
 import React, { useState } from "react";
+import { useUnsavedForm } from '../../hooks/useUnsavedForm';
+import { brandText } from '../../lib/brandContrast.mjs';
 import { Palette, Check, Store, Image as ImageIcon } from "lucide-react";
 
 const colorOptions = [
-  { id: "purple", name: "بنفسجي (افتراضي)", value: "#9333ea" },
+  { id: "chocolate", name: "شوكولاتة", value: "#70452f" },
   { id: "blue", name: "أزرق", value: "#2563eb" },
   { id: "green", name: "أخضر", value: "#16a34a" },
   { id: "orange", name: "برتقالي", value: "#ea580c" },
@@ -22,6 +24,8 @@ export default function AppearanceSettings({ adminData }) {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const {dirty,markSaved}=useUnsavedForm(formData);
+  const [message,setMessage]=useState('');
 
   const saveToLocal = async (e) => {
     e.preventDefault();
@@ -36,11 +40,11 @@ export default function AppearanceSettings({ adminData }) {
       }
 
       // Update CSS variables on the document root so the admin panel also reflects it
-      document.documentElement.style.setProperty("--color-primary", formData.primaryColor);
+      markSaved();
 
-      alert("تم حفظ المظهر بنجاح");
+      setMessage('تم حفظ المظهر بنجاح');
     } catch (err) {
-      alert("حدث خطأ أثناء الحفظ.");
+      setMessage('تعذر حفظ المظهر؛ أعد المحاولة.');
     } finally {
       setIsSaving(false);
     }
@@ -48,6 +52,8 @@ export default function AppearanceSettings({ adminData }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      <p role="status">{dirty?'تعديلات غير محفوظة':message}</p>
+      <div className="rounded-xl p-4" style={{backgroundColor:formData.primaryColor,color:brandText(formData.primaryColor)}}>معاينة لون الزر — يُختار لون النص تلقائيًا لضمان التباين</div>
       <div>
         <h2 className="text-2xl font-bold text-gray-900">المظهر والألوان</h2>
         <p className="text-gray-500 mt-1">تخصيص ألوان المتجر ليتناسب مع هويتك التجارية.</p>
@@ -64,7 +70,7 @@ export default function AppearanceSettings({ adminData }) {
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {colorOptions.map((color) => (
-              <div
+              <button type="button" aria-pressed={formData.primaryColor===color.value}
                 key={color.id}
                 onClick={() => setFormData({ ...formData, primaryColor: color.value })}
                 className={`relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all ${
@@ -88,7 +94,7 @@ export default function AppearanceSettings({ adminData }) {
                   </div>
                   <span className="text-sm font-medium text-gray-700">{color.name}</span>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
 

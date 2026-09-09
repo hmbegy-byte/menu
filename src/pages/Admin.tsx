@@ -59,7 +59,10 @@ import { signOutStore } from "../lib/access";
 
 export default function Admin({ storeSlug }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, changeTab] = useState("overview");
+  const setActiveTab = (tab: string) => {
+    if (tab === activeTab || window.dispatchEvent(new Event('admin:leave', {cancelable:true}))) changeTab(tab);
+  };
 
   const adminData = useAdminData(storeSlug);
   const { store, loading, error, updateStore } = adminData;
@@ -162,6 +165,7 @@ export default function Admin({ storeSlug }) {
           <a href={`/s/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 rounded-xl text-primary hover:bg-muted"><Store size={20} aria-hidden="true"/>معاينة المتجر<span className="sr-only">في نافذة جديدة</span></a>
           <button
             onClick={async () => {
+              if (!window.dispatchEvent(new Event('admin:leave', {cancelable:true}))) return;
               await signOutStore();
               navigate({ to: "/admin" });
             }}

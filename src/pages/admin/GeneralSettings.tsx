@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useUnsavedForm } from '../../hooks/useUnsavedForm';
 import WorkingHoursEditor, { normalizeHours } from './WorkingHoursEditor';
 import { Settings, MessageCircle, AlertCircle, TimerReset } from "lucide-react";
 
@@ -30,6 +31,8 @@ export default function GeneralSettings({ adminData }) {
   );
 
   const [isSaving, setIsSaving] = useState(false);
+  const { dirty, markSaved } = useUnsavedForm({formData,workingHours});
+  const [saveMessage,setSaveMessage] = useState('');
 
   const handleWorkingHourChange = (id, field, value) => {
     setWorkingHours((prev) =>
@@ -45,9 +48,10 @@ export default function GeneralSettings({ adminData }) {
       await saveStoreSection("settings", formData);
       await updateStore({ working_hours: workingHours });
 
-      alert("تم حفظ الإعدادات العامة بنجاح");
+      markSaved();
+      setSaveMessage('تم حفظ الإعدادات العامة بنجاح');
     } catch (err) {
-      alert("حدث خطأ أثناء الحفظ.");
+      setSaveMessage('تعذر الحفظ. التعديلات ما زالت في النموذج؛ أعد المحاولة.');
     } finally {
       setIsSaving(false);
     }
@@ -55,6 +59,7 @@ export default function GeneralSettings({ adminData }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      <p role="status" className="text-sm text-muted-foreground">{dirty ? 'لديك تعديلات غير محفوظة' : saveMessage}</p>
       <div>
         <h2 className="text-2xl font-bold text-gray-900">الإعدادات العامة</h2>
         <p className="text-gray-500 mt-1">التحكم في حالة استقبال الطلبات، الضرائب، والرسائل.</p>
