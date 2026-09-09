@@ -158,9 +158,12 @@ function MenuPage() {
 
   return (
     <div
-      className="min-h-screen bg-slate-50 font-cairo transition-colors duration-300"
+      className="storefront min-h-screen font-cairo transition-colors duration-300"
+      data-brand={store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor)) ? 'la-gaufres' : 'custom'}
       style={{
-        "--theme-primary": appearance?.primaryColor || "#0284c7",
+        "--theme-primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
+        "--primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
+        "--primary-foreground": '#ffffff',
       } as CSSProperties}
     >
       <BrandUpdater assets={brand_assets || {}} isStore />

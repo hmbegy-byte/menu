@@ -2,7 +2,22 @@
 @source "../src";
 @import "tw-animate-css";
 
+
 @custom-variant dark (&:is(.dark *));
+
+/* Flavor Flow: neutral operations, blue actions, independent restaurant identity. */
+@theme {
+  --color-purple-50: #eff6ff;
+  --color-purple-100: #dbeafe;
+  --color-purple-200: #bfdbfe;
+  --color-purple-300: #93c5fd;
+  --color-purple-400: #60a5fa;
+  --color-purple-500: #2563eb;
+  --color-purple-600: #1d4ed8;
+  --color-purple-700: #1e40af;
+  --color-purple-800: #1e3a8a;
+  --color-purple-900: #172554;
+}
 
 /* Shared interaction states remain visible across restaurant brand themes. */
 :where(button, a, input, select, textarea, [tabindex]):focus-visible {
@@ -382,4 +397,93 @@
 
 @utility animate-rise-in {
   animation: rise-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Identity tokens override the legacy palette without changing status colors. */
+:root {
+  --radius: 0.75rem;
+  --background: #f5f7fa;
+  --foreground: #172538;
+  --surface: #ffffff;
+  --surface-strong: #e9eef4;
+  --card: #ffffff;
+  --card-foreground: #172538;
+  --popover: #ffffff;
+  --popover-foreground: #172538;
+  --primary: #1d4ed8;
+  --primary-foreground: #ffffff;
+  --primary-glow: #1d4ed8;
+  --secondary: #e8eef8;
+  --secondary-foreground: #18345c;
+  --muted: #edf1f5;
+  --muted-foreground: #526176;
+  --accent: #e3edf9;
+  --accent-foreground: #18345c;
+  --border: #d6dfe9;
+  --input: #b9c6d6;
+  --ring: #2563eb;
+  --gradient-primary: linear-gradient(var(--primary),var(--primary));
+  --gradient-deep: linear-gradient(180deg,transparent,#101b2be6);
+  --shadow-float: 0 10px 30px -16px #10213b40;
+  --shadow-glow: 0 6px 18px -10px #10213b40;
+}
+.dark {
+  --background: #11161d;
+  --foreground: #edf2f7;
+  --surface: #1a222c;
+  --surface-strong: #263240;
+  --card: #1a222c;
+  --card-foreground: #edf2f7;
+  --popover: #1a222c;
+  --popover-foreground: #edf2f7;
+  --primary: #93c5fd;
+  --primary-foreground: #10243c;
+  --primary-glow: #93c5fd;
+  --secondary: #26374b;
+  --secondary-foreground: #dbeafe;
+  --muted: #263240;
+  --muted-foreground: #b5c1cf;
+  --accent: #26374b;
+  --accent-foreground: #dbeafe;
+  --border: #374657;
+  --input: #536478;
+  --ring: #93c5fd;
+}
+h1, h2, h3 { color: var(--foreground); letter-spacing: normal; }
+.storefront {
+  --background: #faf7f2;
+  --foreground: #30241f;
+  --card: #ffffff;
+  --card-foreground: #30241f;
+  --surface: #ffffff;
+  --surface-strong: #eee5d9;
+  --secondary: #eee5d9;
+  --secondary-foreground: #4b3026;
+  --muted: #f0e9df;
+  --muted-foreground: #716057;
+  --border: #ded2c4;
+  --accent: #ead8c5;
+  --accent-foreground: #4b3026;
+  background-color: var(--background);
+  color: var(--foreground);
+}
+.dark .storefront {
+  --background: #191613;
+  --foreground: #f5eee5;
+  --card: #25201c;
+  --card-foreground: #f5eee5;
+  --surface: #25201c;
+  --surface-strong: #372e27;
+  --secondary: #372e27;
+  --secondary-foreground: #f5eee5;
+  --muted: #372e27;
+  --muted-foreground: #c8b9aa;
+  --border: #544437;
+  --accent: #493a2e;
+  --accent-foreground: #f5eee5;
+}
+.dark .storefront[data-brand="la-gaufres"] {
+  --primary: #ddb08a !important;
+  --primary-foreground: #30241f !important;
+  --ring: #ddb08a;
 }
