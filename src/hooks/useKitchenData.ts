@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Realtime payloads are untyped until database types are generated. */
 import { useEffect, useState } from "react";
 import { hasStoreAccess } from "../lib/access";
-import { isMockMode, supabase } from "../lib/supabase";
+import { isMockMode, kitchenSupabase as supabase } from "../lib/supabase";
 import { readDemoData, writeDemo } from "../lib/storeDefaults";
 
 const activeStatuses = ["pending", "preparing", "ready"];
@@ -39,7 +39,7 @@ export function useKitchenData(storeSlug: string) {
       });
     const load = async () => {
       try {
-        if (!(await hasStoreAccess(storeSlug, ["admin", "kitchen"])))
+        if (!(await hasStoreAccess(storeSlug, ["admin", "kitchen"], supabase)))
           throw new Error("AUTH_REQUIRED");
         if (isMockMode) {
           const demo = readDemoData();

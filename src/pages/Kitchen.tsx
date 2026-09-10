@@ -211,7 +211,7 @@ export default function Kitchen({ storeSlug }) {
             )}
             <button
               onClick={async () => {
-                await signOutStore();
+                await signOutStore(true);
                 navigate({ to: "/kitchen" });
               }}
               className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg"

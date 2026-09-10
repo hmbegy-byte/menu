@@ -13,6 +13,7 @@ import { usePlatformData } from "../hooks/usePlatformData";
 import { hasPlatformAccess, signInPlatform, signOutStore } from "../lib/access";
 import { PLAN_CATALOG, resolvePlan } from "../lib/plans";
 import { isMockMode } from "../lib/supabase";
+import PlatformStaffAccounts from '../components/PlatformStaffAccounts';
 
 export default function Platform() {
   return (
@@ -163,6 +164,7 @@ function PlatformDashboard({ onLogout }) {
           ))}
         </div>
         <NewOrganizationForm data={data} />
+        {!isMockMode && <PlatformStaffAccounts stores={data.stores} />}
         <section className="overflow-hidden rounded-2xl border bg-white">
           <div className="border-b p-5">
             <h2 className="font-bold">المطاعم والعملاء</h2>

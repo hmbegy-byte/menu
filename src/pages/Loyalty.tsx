@@ -7,7 +7,6 @@ import { Button } from '../components/ui/button';
 import type { Session } from '@supabase/supabase-js';
 import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
 import AcceptInvitation from './AcceptInvitation';
-import StaffGoogleAccess from '../components/StaffGoogleAccess';
 
 export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
@@ -80,7 +79,7 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
     else { setAccount(null); setConsent(false); }
   }
   if (invitation) return <AcceptInvitation token={invitation} storeSlug={storeSlug} />;
-  if (staffLogin) return <main dir="rtl" className="min-h-screen bg-background p-6 text-foreground"><div className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-bold">دخول فريق المطعم</h1><StaffGoogleAccess slug={storeSlug}/></div></main>;
+  if (staffLogin) return <main dir="rtl" className="min-h-screen bg-background p-6 text-foreground"><div className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-bold">دخول فريق المطعم</h1><p>استخدم اسم المستخدم وكلمة المرور التي يحددها مالك المنصة.</p><a className="block underline" href="/admin">دخول إدارة المطعم</a><a className="block underline" href="/kitchen">دخول المطبخ</a></div></main>;
   return <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
     <BrandUpdater assets={brand_assets} isStore />
     <div className="mx-auto max-w-md space-y-5">

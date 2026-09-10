@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAdminData } from "../hooks/useAdminData";
 import {
@@ -55,9 +55,34 @@ import LoyaltySettings from "./admin/LoyaltySettings";
 import CampaignManager from "./admin/CampaignManager";
 import OperationsSuite from "./admin/OperationsSuite";
 import RetentionManager from "./admin/RetentionManager";
-import { signOutStore } from "../lib/access";
+import { signOutStore, isAdminUnlocked, lockAdmin } from "../lib/access";
+import AdminGate from './AdminGate';
 
 export default function Admin({ storeSlug }) {
+  const [unlocked, setUnlocked] = useState(() => isAdminUnlocked(storeSlug));
+  useEffect(() => {
+    if (!unlocked) return;
+    let lastActivity = Date.now();
+    const touch = () => { lastActivity = Date.now(); };
+    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
+    events.forEach(name => window.addEventListener(name, touch, { passive: true }));
+    const timer = window.setInterval(() => {
+      if (Date.now() - lastActivity >= 15 * 60 * 1000) {
+        lockAdmin(storeSlug);
+        setUnlocked(false);
+      }
+    }, 1000);
+    return () => {
+      window.clearInterval(timer);
+      events.forEach(name => window.removeEventListener(name, touch));
+      lockAdmin(storeSlug);
+    };
+  }, [unlocked, storeSlug]);
+  if (!unlocked) return <AdminGate storeSlug={storeSlug} onSuccess={() => setUnlocked(true)} />;
+  return <AdminContent storeSlug={storeSlug} />;
+}
+
+function AdminContent({ storeSlug }) {
   const navigate = useNavigate();
   const [activeTab, changeTab] = useState("overview");
   const setActiveTab = (tab: string) => {

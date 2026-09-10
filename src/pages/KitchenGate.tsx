@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChefHat } from "lucide-react";
 import { signInToStore } from "../lib/access";
 import { isMockMode } from "../lib/supabase";
-import StaffGoogleAccess from '../components/StaffGoogleAccess';
+import StaffPasswordSetup from '../components/StaffPasswordSetup';
 
 export default function KitchenGate() {
   const navigate = useNavigate();
@@ -14,12 +14,14 @@ export default function KitchenGate() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [needsPassword, setNeedsPassword] = useState(false);
   const submit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      await signInToStore(form.slug.trim(), form.email.trim(), form.password, ["kitchen", "admin"]);
+      const result = await signInToStore(form.slug.trim(), form.email.trim(), form.password, ["kitchen", "admin"]);
+      if ('needsPasswordChange' in result && result.needsPasswordChange) {setForm({...form,password:''}); setNeedsPassword(true); return;}
       navigate({ to: `/kitchen/${form.slug.trim()}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تسجيل الدخول");
@@ -27,6 +29,7 @@ export default function KitchenGate() {
       setLoading(false);
     }
   };
+  if (needsPassword) return <StaffPasswordSetup kitchen onDone={() => setNeedsPassword(false)}/>;
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
       <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-md w-full space-y-6">
@@ -35,7 +38,6 @@ export default function KitchenGate() {
           <h1 className="mt-3 text-2xl font-bold">دخول المطبخ</h1>
           <p className="mt-1 text-sm text-gray-500">الحسابات المصرح لها بالمطبخ فقط</p>
         </div>
-        <StaffGoogleAccess slug={form.slug}/>
         <form onSubmit={submit} className="space-y-4">
           <input
             aria-label="رابط المطعم"
@@ -47,9 +49,10 @@ export default function KitchenGate() {
             required
           />
           <input
-            aria-label="البريد الإلكتروني"
-            type="email"
-            placeholder="البريد الإلكتروني"
+            aria-label="اسم المستخدم"
+            type="text"
+            autoComplete="username"
+            placeholder="اسم المستخدم"
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             className="w-full border rounded-xl p-3"
