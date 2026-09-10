@@ -7,6 +7,7 @@ import { Button } from '../components/ui/button';
 import type { Session } from '@supabase/supabase-js';
 import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
 import AcceptInvitation from './AcceptInvitation';
+import StaffGoogleAccess from '../components/StaffGoogleAccess';
 
 export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
@@ -21,8 +22,10 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const [name, setName] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [invitation,setInvitation]=useState('');
+  const [staffLogin,setStaffLogin]=useState(false);
   useEffect(() => {
     setInvitation(new URLSearchParams(window.location.search).get('invite') || '');
+    setStaffLogin(new URLSearchParams(window.location.search).get('staff')==='1');
     if (new URLSearchParams(window.location.hash.slice(1)).has('error') || new URLSearchParams(window.location.search).has('error')) {
       setError('لم يكتمل تسجيل الدخول. حاول مجددًا.');
       window.history.replaceState(null, '', window.location.pathname);
@@ -77,6 +80,7 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
     else { setAccount(null); setConsent(false); }
   }
   if (invitation) return <AcceptInvitation token={invitation} storeSlug={storeSlug} />;
+  if (staffLogin) return <main dir="rtl" className="min-h-screen bg-background p-6 text-foreground"><div className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-bold">دخول فريق المطعم</h1><StaffGoogleAccess slug={storeSlug}/></div></main>;
   return <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
     <BrandUpdater assets={brand_assets} isStore />
     <div className="mx-auto max-w-md space-y-5">

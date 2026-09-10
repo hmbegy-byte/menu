@@ -3,6 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { signInToStore } from "../lib/access";
 import { isMockMode } from "../lib/supabase";
+import StaffGoogleAccess from '../components/StaffGoogleAccess';
 
 export default function AdminGate() {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ export default function AdminGate() {
           <h1 className="mt-3 text-2xl font-bold">دخول الإدارة</h1>
           <p className="mt-1 text-sm text-gray-500">استخدم حسابًا مصرحًا له بإدارة المطعم</p>
         </div>
+        <StaffGoogleAccess slug={form.slug}/>
         <form onSubmit={submit} className="space-y-4">
           <input
             aria-label="رابط المطعم"

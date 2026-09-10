@@ -26,8 +26,7 @@ export async function signInToStore(
     .eq("stores.slug", slug)
     .maybeSingle();
   if (membershipError || !membership || !allowedRoles.includes(membership.role)) {
-    await supabase.auth.signOut();
-    throw new Error("لا تملك صلاحية الدخول إلى هذا المطعم");
+    throw new Error("الحساب مسجّل لكن لا يملك دور هذه الصفحة. استخدم فتح لوحة العمل بالحساب الحالي للتوجيه حسب صلاحيتك.");
   }
   return membership;
 }
