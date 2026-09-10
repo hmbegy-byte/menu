@@ -55,18 +55,19 @@ export function useKitchenData(storeSlug: string) {
           .maybeSingle();
         if (storeError) throw storeError;
         if (!foundStore) throw new Error("المطعم غير موجود");
-        const { data: subscription, error: subscriptionError } = await supabase
-          .from("subscriptions")
-          .select("status, plans(features)")
-          .eq("organization_id", foundStore.organization_id)
-          .maybeSingle();
-        if (subscriptionError) throw subscriptionError;
-        const features = subscription?.plans?.features || [];
-        if (!subscription || !["trial", "active"].includes(subscription.status)) {
-          throw new Error("اشتراك المطعم غير نشط");
-        }
-        if (!features.includes("kitchen")) {
-          throw new Error("شاشة المطبخ غير متاحة في باقة المطعم الحالية");
+        const { data: access, error: accessError } = await supabase.rpc(
+          "check_kitchen_access", { p_store_id: foundStore.id },
+        );
+        if (accessError) throw new Error("تعذر التحقق من صلاحية تشغيل المطبخ. حاول مرة أخرى.");
+        const accessMessages: Record<string, string> = {
+          AUTH_REQUIRED: "AUTH_REQUIRED",
+          ACCESS_DENIED: "لا تملك صلاحية دخول مطبخ هذا المطعم",
+          SUBSCRIPTION_MISSING: "لم يتم إعداد اشتراك المطعم. تواصل مع مالك المنصة.",
+          SUBSCRIPTION_INACTIVE: "اشتراك المطعم غير نشط. تواصل مع مالك المنصة.",
+          KITCHEN_NOT_INCLUDED: "شاشة المطبخ غير متاحة في باقة المطعم الحالية",
+        };
+        if (access !== "ALLOWED") {
+          throw new Error(accessMessages[access] || "تعذر التحقق من صلاحية تشغيل المطبخ. حاول مرة أخرى.");
         }
         setStore(foundStore);
         const fetchOrders = async () => {
