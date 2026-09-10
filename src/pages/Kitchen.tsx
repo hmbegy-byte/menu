@@ -5,8 +5,11 @@ import { useKitchenData } from "../hooks/useKitchenData";
 import OrderCard from "../components/OrderCard";
 import PrintReceipt from "../components/PrintReceipt";
 import { signOutStore } from "../lib/access";
+import StaffScanner from './StaffScanner';
+import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
 
 export default function Kitchen({ storeSlug }) {
+  const [scannerOpen, setScannerOpen] = useState(false);
   const navigate = useNavigate();
   const {
     store,
@@ -183,6 +186,13 @@ export default function Kitchen({ storeSlug }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => setScannerOpen(true)} className="rounded-lg border px-4 py-2 font-bold">ماسح الولاء</button>
+            <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
+              <DialogContent className="max-h-[90vh] overflow-y-auto" dir="rtl">
+                <DialogTitle>ماسح ولاء العملاء</DialogTitle>
+                {scannerOpen && <StaffScanner storeSlug={storeSlug} kitchen />}
+              </DialogContent>
+            </Dialog>
             <span
               className={`px-3 py-2 rounded-lg text-sm font-bold ${connectionStatus === "online" ? "bg-green-100 text-green-700" : connectionStatus === "demo" ? "bg-amber-100 text-amber-700" : "bg-red-100 text-red-700"}`}
             >

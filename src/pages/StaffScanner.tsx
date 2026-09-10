@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useAdminData } from "../hooks/useAdminData";
-import { supabase } from "../lib/supabase";
+import { supabase as adminSupabase, kitchenSupabase } from "../lib/supabase";
+import { hasStoreAccess } from '../lib/access';
 import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
 import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
@@ -8,8 +8,24 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { ScanLine, UserCheck, Plus, Minus, AlertCircle } from "lucide-react";
 
-export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
-  const { store, organization, loading, error } = useAdminData(storeSlug);
+export default function StaffScannerPage({ storeSlug, kitchen = false }: { storeSlug: string; kitchen?: boolean }) {
+  const supabase = kitchen ? kitchenSupabase : adminSupabase;
+  const [store, setStore] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        if (!await hasStoreAccess(storeSlug,['admin','kitchen','manager','cashier'],supabase)) throw new Error('AUTH_REQUIRED');
+        const result = await supabase.from('stores').select('id,name').eq('slug',storeSlug).single();
+        if (result.error) throw new Error('تعذر تحميل المطعم');
+        if (active) setStore(result.data);
+      } catch(e) { if(active) setError(e instanceof Error ? e.message : 'تعذر التحميل'); }
+      finally {if(active) setLoading(false);}
+    })();
+    return () => {active = false;};
+  },[storeSlug,supabase]);
   const [scanning, setScanning] = useState(false);
   const [scannedCustomer, setScannedCustomer] = useState<any>(null);
   const [adjustmentAmount, setAdjustmentAmount] = useState<number>(0);
@@ -25,7 +41,7 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
   if (error === "AUTH_REQUIRED") {
     return <div className="min-h-screen grid place-items-center">يجب تسجيل الدخول كمسؤول أو موظف</div>;
   }
-  if (!store || !organization) {
+  if (!store) {
     return <div className="min-h-screen grid place-items-center">المتجر غير موجود</div>;
   }
 
@@ -54,14 +70,9 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
     setScanError("");
     const normalized = normalizeLoyaltyPhone(phoneSearch);
     if (!normalized) { setScanError('أدخل رقم جوال صالحًا.'); return; }
-    const { data, error: lookupError } = await supabase
-      .from("loyalty_customers")
-      .select("*")
-      .eq("organization_id", organization.id)
-      .or(`phone.eq.${normalized},contact_phone.eq.${normalized}`)
-      .maybeSingle();
-    if (lookupError || !data) setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
-    else setScannedCustomer(data);
+    const { data, error: lookupError } = await supabase.rpc('staff_loyalty_lookup', {p_store_id:store.id,p_phone:normalized});
+    if (lookupError || data?.length !== 1) setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
+    else setScannedCustomer(data[0]);
   };
 
   const handleScan = async (qrData: string) => {
@@ -69,18 +80,12 @@ export default function StaffScannerPage({ storeSlug }: { storeSlug: string }) {
       const parsed = JSON.parse(qrData);
       if (parsed.a && parsed.t) {
         // Fetch customer by token
-        const { data, error } = await supabase
-          .from("loyalty_customers")
-          .select("*")
-          .eq("id", parsed.a)
-          .eq("qr_token", parsed.t)
-          .eq("organization_id", organization.id)
-          .single();
+        const { data, error } = await supabase.rpc('staff_loyalty_lookup', {p_store_id:store.id,p_customer_id:parsed.a,p_token:parsed.t});
           
-        if (error || !data) {
+        if (error || data?.length !== 1) {
           setScanError("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
         } else {
-          setScannedCustomer(data);
+          setScannedCustomer(data[0]);
         }
       }
     } catch (e) {
