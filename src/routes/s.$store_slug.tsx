@@ -78,7 +78,7 @@ function MenuPage() {
   const mappedProducts = useMemo(() => {
     return products.map((p) => {
       const groups = (p.options || []).map((opt, i) => ({
-        id: opt.id || `group_${i}`,
+        id: opt.id ?? opt.title ?? "",
         title: opt.title || "خيارات",
         subtitle: opt.required ? "إجباري" : "اختياري",
         multiple: Boolean(opt.multiple),
@@ -86,7 +86,7 @@ function MenuPage() {
         minSelections: Number(opt.min_selections ?? (opt.required ? 1 : 0)),
         maxSelections: Number(opt.max_selections ?? (opt.multiple ? (opt.choices || []).length : 1)),
         options: (opt.choices || []).map((c, j) => ({
-          id: c.id || `choice_${i}_${j}`,
+          id: c.id ?? c.name ?? c.label ?? "",
           name: c.name || c.label || "",
           price: Number(c.extra_price) || Number(c.price) || 0,
           isAvailable: c.is_available !== false,

@@ -206,7 +206,13 @@ export function CartSheet({
           p_campaign_slug: attribution.campaign || null,
           p_attribution_source: attribution.source || null,
         });
-        if (orderError) throw orderError;
+        if (orderError) {
+          // PostgREST errors are plain objects, not Error instances.
+          const message = orderError.code === 'P0001' && /^[\u0600-\u06ff]/.test(orderError.message || '')
+            ? orderError.message
+            : `تعذر إرسال الطلب. رمز الخطأ: ${/^[A-Z0-9]+$/.test(orderError.code || '') ? orderError.code : 'NETWORK'}`;
+          throw new Error(message);
+        }
         savedOrder = Array.isArray(data) ? data[0] : data;
       }
       const confirmation = {
