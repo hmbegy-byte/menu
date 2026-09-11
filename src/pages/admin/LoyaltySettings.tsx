@@ -6,9 +6,11 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Switch } from "../../components/ui/switch";
+import LoyaltyRulesEditor from '../../components/LoyaltyRulesEditor';
 
 export default function LoyaltySettings({ adminData }: any) {
-  const { store, organization } = adminData;
+  const { store } = adminData;
+  const organization = adminData.organization || (store?.organization_id ? {id:store.organization_id} : null);
   const [program, setProgram] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -22,11 +24,12 @@ export default function LoyaltySettings({ adminData }: any) {
 
   const loadProgram = async () => {
     setLoading(true);
-    let { data } = await supabase
+    let { data, error: loadError } = await supabase
       .from("loyalty_programs")
       .select("*")
       .eq("organization_id", organization.id)
       .maybeSingle();
+    if(loadError){setMessage('تعذر تحميل إعدادات الولاء');setLoading(false);return;}
 
     if (!data) {
       // Create default
@@ -53,6 +56,9 @@ export default function LoyaltySettings({ adminData }: any) {
         is_active: program.is_active,
         points_name: program.points_name,
         min_order_amount: program.min_order_amount,
+        program_type: program.program_type,
+        stamps_name: program.stamps_name,
+        allow_staff_adjustments: program.allow_staff_adjustments,
       })
       .eq("id", program.id);
 
@@ -65,6 +71,7 @@ export default function LoyaltySettings({ adminData }: any) {
     }
   };
 
+  if (!loading && !program) return <p role="alert">{message || 'تعذر تحميل إعدادات الولاء'}</p>;
   if (loading || !program) {
     return <div className="p-8 text-center text-muted-foreground">جاري التحميل...</div>;
   }
@@ -99,6 +106,9 @@ export default function LoyaltySettings({ adminData }: any) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <label>نوع البرنامج<select className="block w-full border rounded-xl p-3" value={program.program_type} onChange={e=>setProgram({...program,program_type:e.target.value})}><option value="points">نقاط</option><option value="stamps">أختام</option><option value="hybrid">نقاط وأختام</option></select></label>
+            <label>اسم الأختام<Input value={program.stamps_name} onChange={e=>setProgram({...program,stamps_name:e.target.value})}/></label>
+            <label className="flex gap-3 items-center"><input type="checkbox" checked={Boolean(program.allow_staff_adjustments)} onChange={e=>setProgram({...program,allow_staff_adjustments:e.target.checked})}/>السماح للعامل بإضافة وخصم الرصيد يدويًا خارج القواعد</label>
             <div className="space-y-2">
               <Label>اسم العملة (مثال: نقاط، نجوم)</Label>
               <Input 
@@ -129,6 +139,7 @@ export default function LoyaltySettings({ adminData }: any) {
       </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2"><LoyaltyRulesEditor organizationId={organization.id} products={adminData.products || []}/></div>
         <Card>
           <CardHeader>
             <CardTitle>رابط صفحة العملاء</CardTitle>

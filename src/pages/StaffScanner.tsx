@@ -11,6 +11,9 @@ import { ScanLine, UserCheck, Plus, Minus, AlertCircle } from "lucide-react";
 export default function StaffScannerPage({ storeSlug, kitchen = false }: { storeSlug: string; kitchen?: boolean }) {
   const supabase = kitchen ? kitchenSupabase : adminSupabase;
   const [store, setStore] = useState<any>(null);
+  const [manualAllowed,setManualAllowed]=useState(false);
+  const [rewards,setRewards]=useState<any[]>([]);
+  const redemptionKeys=useRef<Record<string,string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -18,9 +21,10 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
     (async () => {
       try {
         if (!await hasStoreAccess(storeSlug,['admin','kitchen','manager','cashier'],supabase)) throw new Error('AUTH_REQUIRED');
-        const result = await supabase.from('stores').select('id,name').eq('slug',storeSlug).single();
+        const result = await supabase.from('stores').select('id,name,organization_id').eq('slug',storeSlug).single();
         if (result.error) throw new Error('تعذر تحميل المطعم');
-        if (active) setStore(result.data);
+        const [p,r]=await Promise.all([supabase.from('loyalty_programs').select('allow_staff_adjustments,is_active').eq('organization_id',result.data.organization_id).maybeSingle(),supabase.from('loyalty_rewards').select('*').eq('organization_id',result.data.organization_id).eq('is_active',true)]);
+        if (active) {setStore(result.data);setManualAllowed(!kitchen||Boolean(p.data?.is_active&&p.data.allow_staff_adjustments));setRewards((r.data||[]).filter(x=>(!x.valid_from||Date.parse(x.valid_from)<=Date.now())&&(!x.valid_until||Date.parse(x.valid_until)>Date.now())));}
       } catch(e) { if(active) setError(e instanceof Error ? e.message : 'تعذر التحميل'); }
       finally {if(active) setLoading(false);}
     })();
@@ -124,6 +128,23 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
     setProcessing(false);
   };
 
+  const redeem=async(reward:any)=>{
+    if(processing||!scannedCustomer||!window.confirm(`تأكيد تسليم «${reward.conditions?.title||'المكافأة'}» وخصم ${reward.points_cost||0} نقطة و${reward.stamps_cost||0} ختم؟`)) return;
+    setProcessing(true);setScanError('');
+    const key=`${scannedCustomer.id}:${reward.id}`;
+    const storageKey=`loyalty-redemption:${store.id}:${key}`;
+    redemptionKeys.current[key] ||= sessionStorage.getItem(storageKey)||crypto.randomUUID();
+    sessionStorage.setItem(storageKey,redemptionKeys.current[key]);
+    try {
+      const {error}=await supabase.rpc('redeem_loyalty_reward',{p_store_id:store.id,p_customer_id:scannedCustomer.id,p_reward_id:reward.id,p_request_key:redemptionKeys.current[key]});
+      if(error) throw new Error('تعذر الاستبدال. تحقق من الرصيد وصلاحية المكافأة قبل المحاولة مجددًا.');
+      sessionStorage.removeItem(storageKey);
+      delete redemptionKeys.current[key];
+      setScannedCustomer(null);setScanError('تم تسجيل تسليم المكافأة بنجاح.');
+    }catch(e){setScanError(e instanceof Error?e.message:'تعذر الاستبدال');}
+    finally{setProcessing(false);}
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4" dir="rtl">
       <div className="max-w-md mx-auto space-y-6 pt-4">
@@ -200,7 +221,8 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3"><h3 className="font-bold">تسليم مكافأة</h3>{rewards.map(r=><Button key={r.id} className="w-full" variant="outline" disabled={processing||scannedCustomer.points_balance<(r.points_cost||0)||scannedCustomer.stamps_balance<(r.stamps_cost||0)} onClick={()=>redeem(r)}>{r.conditions?.title||'مكافأة'} — {r.points_cost||0} نقطة + {r.stamps_cost||0} ختم</Button>)}{!rewards.length&&<p>لا توجد مكافآت نشطة.</p>}{scanError&&<p role="status">{scanError}</p>}</div>
+              {manualAllowed && <div className="space-y-4">
                 <h3 className="font-semibold text-sm">تعديل الرصيد يدوياً</h3>
                 <div className="flex gap-2">
                   <Input 
@@ -247,7 +269,7 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
                     <Minus className="w-4 h-4 ml-1" /> خصم أختام
                   </Button>
                 </div>
-              </div>
+              </div>}
             </CardContent>
           </Card>
         )}

@@ -12,6 +12,8 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
   const [session, setSession] = useState<Session | null>(null);
   const [program, setProgram] = useState<any>(null);
+  const [rewards,setRewards]=useState<any[]>([]);
+  const [rules,setRules]=useState<any[]>([]);
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -43,6 +45,9 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
         if (result.error) throw result.error;
         if (!active) return;
         setProgram(result.data);
+        const [rewardRows,ruleRows]=await Promise.all([supabase.from('loyalty_rewards').select('*').eq('organization_id',store.organization_id).eq('is_active',true),supabase.from('loyalty_earning_rules').select('*').eq('organization_id',store.organization_id).eq('is_active',true)]);
+        const current=(r:any)=>(!r.valid_from||Date.parse(r.valid_from)<=Date.now())&&(!r.valid_until||Date.parse(r.valid_until)>Date.now());
+        if(active){setRewards((rewardRows.data||[]).filter(current));setRules((ruleRows.data||[]).filter(current));}
         if (result.data && session?.user.id) {
           const membership = await supabase.from('loyalty_customers').select('*').eq('organization_id', store.organization_id).eq('auth_user_id', session.user.id).maybeSingle();
           if (membership.error) throw membership.error;
@@ -107,6 +112,8 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
           <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG value={JSON.stringify({ a: account.id, t: account.qr_token })} size={200} level="H" /></div>
           <p>اعرض هذا الرمز لموظف المطعم لإضافة النقاط أو استبدالها.</p>
           <p className="text-sm">رقم العضوية: {account.membership_number}</p>
+          <section className="text-start space-y-3"><h2 className="font-bold">كيف تكسب الرصيد؟</h2><p>يُحتسب عند اكتمال طلبك باستخدام رقم جوال عضويتك. الحد الأدنى للطلب: {program.min_order_amount} ر.س. يتم تجاهل كسور النقاط والأختام.</p>{rules.filter(r=>program.program_type==='hybrid'||r.currency_type===program.program_type).map(r=><p key={r.id}>{r.conditions?.title||'قاعدة كسب'}: {r.reward_value} {r.currency_type==='points'?'نقطة':'ختم'} {r.rule_type==='points_per_currency'?'لكل ريال':r.rule_type==='stamps_for_items'?'لكل وحدة من الصنف المحدد':'لكل طلب مؤهل'}، بحد أدنى {r.min_amount||0} ر.س.</p>)}</section>
+          <section className="text-start space-y-3"><h2 className="font-bold">المكافآت</h2><p>اعرض بطاقتك للعامل واطلب المكافأة؛ يخصم الرصيد عند تأكيد التسليم.</p>{rewards.map(r=><div key={r.id} className="border rounded-xl p-3"><h3 className="font-bold">{r.conditions?.title||'مكافأة المطعم'}</h3><p>{r.points_cost||0} نقطة + {r.stamps_cost||0} ختم</p><p>{account.points_balance>=(r.points_cost||0)&&account.stamps_balance>=(r.stamps_cost||0)?'رصيدك يكفي لهذه المكافأة':`ينقصك ${Math.max(0,(r.points_cost||0)-account.points_balance)} نقطة و${Math.max(0,(r.stamps_cost||0)-account.stamps_balance)} ختم`}</p>{r.valid_until&&<p>صالحة حتى {new Date(r.valid_until).toLocaleDateString('ar-SA')}</p>}</div>)}{!rewards.length&&<p>لم يحدد المطعم مكافآت متاحة بعد.</p>}</section>
           <details className="rounded-xl border p-4 text-start"><summary className="cursor-pointer font-bold">حفظ البطاقة على شاشة الجوال</summary><p className="mt-3">آيفون: افتح الصفحة في Safari ثم المشاركة ← إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">أندرويد: من قائمة المتصفح اختر إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">يمكنك فتح البطاقة من جهاز آخر بتسجيل الدخول بنفس حساب قوقل.</p></details>
         </>}
         <Button variant="outline" onClick={() => { setError(''); setRefresh(n => n + 1); }} disabled={loading}>تحديث</Button>
