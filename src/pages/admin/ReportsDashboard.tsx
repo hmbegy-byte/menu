@@ -1,109 +1,69 @@
-import { Banknote, Clock3, ShoppingBag, TrendingUp, Truck, XCircle } from "lucide-react";
 import { formatCurrency } from "../../lib/currency";
-
-export default function ReportsDashboard({ adminData }) {
-  const { orders, store } = adminData;
-  const completed = orders.filter((order) => order.status === "completed");
-  const valid = orders.filter((order) => order.status !== "cancelled");
-  const revenue = valid.reduce((sum, order) => sum + Number(order.total_amount || 0), 0);
-  const average = valid.length ? revenue / valid.length : 0;
-  const prepTimes = completed
-    .map(
-      (order) =>
-        (new Date(order.completed_at || order.updated_at || order.created_at).getTime() -
-          new Date(order.created_at).getTime()) /
-        60000,
-    )
-    .filter((value) => value >= 0);
-  const averagePrep = prepTimes.length
-    ? Math.round(prepTimes.reduce((a, b) => a + b, 0) / prepTimes.length)
-    : 0;
-  const byProduct = new Map();
-  orders
-    .flatMap((order) => order.order_items || [])
-    .forEach((item) =>
-      byProduct.set(
-        item.product_name,
-        (byProduct.get(item.product_name) || 0) + Number(item.quantity || 0),
-      ),
-    );
-  const topProducts = [...byProduct.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
-  const cards = [
-    [
-      "إجمالي المبيعات",
-      formatCurrency(revenue, store.currency),
-      Banknote,
-      "text-green-600 bg-green-50",
-    ],
-    ["الطلبات", valid.length, ShoppingBag, "text-blue-600 bg-blue-50"],
-    [
-      "متوسط الطلب",
-      formatCurrency(average, store.currency),
-      TrendingUp,
-      "text-purple-600 bg-purple-50",
-    ],
-    ["متوسط التجهيز", `${averagePrep} دقيقة`, Clock3, "text-orange-600 bg-orange-50"],
-  ];
+import { useSalesReport } from "../../hooks/useSalesReport";
+import ReportPeriod from "../../components/ReportPeriod";
+export default function ReportsDashboard({
+  adminData,
+}: {
+  adminData: { store: { id: string; currency: string } };
+}) {
+  const data = useSalesReport(adminData.store.id);
+  const r = data.report;
+  const money = (n: number) => formatCurrency(n, adminData.store.currency);
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold">التقارير التشغيلية</h2>
-        <p className="mt-1 text-gray-500">مؤشرات تساعدك على اتخاذ قرارات يومية أفضل.</p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        {cards.map(([label, value, Icon, color]) => (
-          <div key={label} className="rounded-2xl border bg-white p-5">
-            <span className={`mb-3 flex h-11 w-11 items-center justify-center rounded-xl ${color}`}>
-              <Icon size={22} />
-            </span>
-            <p className="text-sm text-gray-500">{label}</p>
-            <p className="mt-1 text-2xl font-bold">{value}</p>
-          </div>
-        ))}
-      </div>
-      <div className="grid gap-5 md:grid-cols-2">
-        <section className="rounded-2xl border bg-white p-5">
-          <h3 className="mb-4 font-bold">الأصناف الأكثر طلبًا</h3>
-          {topProducts.length ? (
-            topProducts.map(([name, count], index) => (
-              <div key={name} className="flex justify-between border-b py-3 last:border-0">
-                <span>
-                  {index + 1}. {name}
-                </span>
-                <strong>{count} طلب</strong>
-              </div>
-            ))
-          ) : (
-            <p className="text-gray-500">ستظهر النتائج بعد وصول الطلبات.</p>
+      <h2 className="text-2xl font-bold">تقارير المبيعات</h2>
+      <ReportPeriod {...data} />
+      <p>
+        المبيعات للطلبات المكتملة فقط، بعد المرتجعات المسجلة، وتشمل الضريبة والتوصيل. المعلقة
+        والملغاة لا تدخل في المبيعات. هذه ليست أرباحًا ولا إثبات تحصيل.
+      </p>
+      {data.error ? (
+        <p role="alert">{data.error}</p>
+      ) : !r ? (
+        <p role="status">جارٍ تحميل التقرير…</p>
+      ) : (
+        <>
+          {r.unknown_discount_orders > 0 && (
+            <p role="status" className="rounded-xl border p-4">
+              هناك {r.unknown_discount_orders} طلبًا قديمًا لم يُسجل خصمه الأصلي. الإجمالي قبل الخصم
+              والخصومات أدناه للطلبات الموثقة فقط؛ صافي المبيعات يشمل كل المكتملة.
+            </p>
           )}
-        </section>
-        <section className="rounded-2xl border bg-white p-5">
-          <h3 className="mb-4 font-bold">جودة التشغيل</h3>
-          <p className="flex justify-between py-3">
-            <span className="flex gap-2">
-              <Truck size={18} /> طلبات التوصيل
-            </span>
-            <strong>{orders.filter((o) => o.order_type === "delivery").length}</strong>
-          </p>
-          <p className="flex justify-between border-t py-3">
-            <span className="flex gap-2">
-              <XCircle size={18} /> الطلبات الملغاة
-            </span>
-            <strong>{orders.filter((o) => o.status === "cancelled").length}</strong>
-          </p>
-          <p className="flex justify-between border-t py-3">
-            <span>نسبة الإلغاء</span>
-            <strong>
-              {orders.length
-                ? Math.round(
-                    (orders.filter((o) => o.status === "cancelled").length / orders.length) * 100,
-                  )
-                : 0}
-              %
-            </strong>
-          </p>
-        </section>
-      </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[
+              ["صافي المبيعات", money(r.net_sales)],
+              ["الطلبات المكتملة", r.completed_orders],
+              ["متوسط المكتمل بعد المرتجعات", money(r.average_order)],
+              ["المرتجعات المسجلة", money(r.refunds)],
+              ["قبل الخصم — الموثق", money(r.gross_known)],
+              ["الخصومات الموثقة", money(r.discounts_known)],
+              ["قيد التنفيذ", r.pending_orders],
+              ["ملغاة", r.cancelled_orders],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl border p-4">
+                <p>{label}</p>
+                <strong className="text-2xl">{value}</strong>
+              </div>
+            ))}
+          </div>
+          <section className="rounded-xl border p-4">
+            <h3 className="font-bold">الأصناف الأكثر طلبًا</h3>
+            <p className="text-sm">
+              كميات الطلبات المكتملة غير المستردة بالكامل؛ الاسترداد الجزئي مبلغ على الطلب ولا يحدد
+              وحدات صنف مرتجعة.
+            </p>
+            {r.products.map((p) => (
+              <div
+                key={String(p.product_id) + p.product_name}
+                className="flex justify-between border-b py-3"
+              >
+                <span>{p.product_name}</span>
+                <strong>{p.quantity}</strong>
+              </div>
+            ))}
+          </section>
+        </>
+      )}
     </div>
   );
 }

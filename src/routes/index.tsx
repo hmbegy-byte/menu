@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isMockMode, supabase } from "../lib/supabase";
+import { domainStoreSlug } from "../lib/domainDestination.mjs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -28,13 +29,14 @@ function DomainResolver() {
         .eq("hostname", hostname)
         .in("status", ["verified", "active"])
         .maybeSingle();
-      if (domainError || !data?.stores?.slug) {
+      const slug = domainStoreSlug(data?.stores);
+      if (domainError || !slug) {
         setError("هذا النطاق غير مربوط بمتجر نشط.");
         return;
       }
       navigate({
         to: "/s/$store_slug",
-        params: { store_slug: data.stores.slug },
+        params: { store_slug: slug },
         replace: true,
       });
     };

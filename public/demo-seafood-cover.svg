@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" role="img" aria-labelledby="title desc">
+  <title id="title">مأكولات بحرية طازجة</title>
+  <desc id="desc">خلفية بحرية دافئة مع طبق سمك مبسط</desc>
+  <defs>
+    <linearGradient id="sea" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#102a35"/>
+      <stop offset="0.55" stop-color="#1d5661"/>
+      <stop offset="1" stop-color="#d59a62"/>
+    </linearGradient>
+    <radialGradient id="plate" cx="50%" cy="45%" r="55%">
+      <stop offset="0" stop-color="#fff8e8"/>
+      <stop offset="1" stop-color="#d9ccb5"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#sea)"/>
+  <circle cx="930" cy="335" r="245" fill="url(#plate)" opacity=".96"/>
+  <path d="M735 340c95-110 285-135 405-5-112 129-305 132-405 5Z" fill="#ba6e3f"/>
+  <path d="m744 340-112-86 18 98-18 89 112-101Z" fill="#e1a064"/>
+  <circle cx="1062" cy="318" r="12" fill="#14242a"/>
+  <path d="M796 340c70 34 184 37 268 0" fill="none" stroke="#f5c993" stroke-width="18" stroke-linecap="round"/>
+  <g fill="#a8d5c4" opacity=".75">
+    <circle cx="170" cy="145" r="13"/><circle cx="220" cy="205" r="7"/><circle cx="112" cy="255" r="9"/>
+  </g>
+</svg>

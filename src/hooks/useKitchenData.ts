@@ -1,8 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Realtime payloads are untyped until database types are generated. */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { hasStoreAccess } from "../lib/access";
 import { isMockMode, kitchenSupabase as supabase } from "../lib/supabase";
 import { readDemoData, writeDemo } from "../lib/storeDefaults";
+
+import { reconcileKitchen } from "../lib/kitchenRecovery.mjs";
 
 const activeStatuses = ["pending", "preparing", "ready"];
 
@@ -14,22 +16,42 @@ export function useKitchenData(storeSlug: string) {
   const [connectionStatus, setConnectionStatus] = useState("connecting");
   const [newOrderAlert, setNewOrderAlert] = useState(false);
   const [pendingSync, setPendingSync] = useState(0);
-  const queueKey = `kitchen-offline-queue:${storeSlug}`;
+  const [syncNotice, setSyncNotice] = useState("");
+  const queueKeyRef = useRef("");
+  const recoverRef = useRef<() => Promise<void>>(async () => {});
 
-  const queueStatusUpdate = (orderId: string, status: string, updates: Record<string, any>) => {
-    const current = JSON.parse(localStorage.getItem(queueKey) || "[]");
+  const queueStatusUpdate = (orderId: string, status: string) => {
+    if (!queueKeyRef.current) throw new Error("تعذر تحديد حساب المطبخ");
+    const current = JSON.parse(localStorage.getItem(queueKeyRef.current) || "[]");
+    if (current.some((item: any) => item.orderId === orderId))
+      throw new Error("هذا الطلب لديه تحديث بانتظار المزامنة");
     const next = [
       ...current.filter((item: any) => item.orderId !== orderId),
-      { orderId, status, updates, queuedAt: new Date().toISOString() },
+      {
+        orderId,
+        status,
+        expected: orders.find((o) => o.id === orderId)?.status,
+        command: crypto.randomUUID(),
+        queuedAt: new Date().toISOString(),
+      },
     ];
-    localStorage.setItem(queueKey, JSON.stringify(next));
+    localStorage.setItem(queueKeyRef.current, JSON.stringify(next));
     setPendingSync(next.length);
     setConnectionStatus("offline");
   };
 
   useEffect(() => {
+    setLoading(true);
+    setOrders([]);
+    setStore(null);
+    setError(null);
+    setSyncNotice("");
+    setConnectionStatus("connecting");
     let channel: any;
     let cancelled = false;
+    let subscribed = false;
+    let recovering: Promise<void> | null = null;
+    let recoverAgain = false;
     const applyOrders = (next: any[]) =>
       setOrders((previous) => {
         const previousIds = new Set(previous.map((o) => o.id));
@@ -55,9 +77,20 @@ export function useKitchenData(storeSlug: string) {
           .maybeSingle();
         if (storeError) throw storeError;
         if (!foundStore) throw new Error("المطعم غير موجود");
-        const { data: access, error: accessError } = await supabase.rpc(
-          "check_kitchen_access", { p_store_id: foundStore.id },
-        );
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("AUTH_REQUIRED");
+        const queueKey = `kitchen-queue-v2:${foundStore.id}:${user.id}`;
+        queueKeyRef.current = queueKey;
+        if (localStorage.getItem(`kitchen-queue:${storeSlug}`)) {
+          setSyncNotice(
+            "توجد قائمة قديمة غير مرتبطة بحساب؛ لم تُرسل تلقائيًا. راجع حالات الطلبات الحالية قبل تحديثها.",
+          );
+        }
+        const { data: access, error: accessError } = await supabase.rpc("check_kitchen_access", {
+          p_store_id: foundStore.id,
+        });
         if (accessError) throw new Error("تعذر التحقق من صلاحية تشغيل المطبخ. حاول مرة أخرى.");
         const accessMessages: Record<string, string> = {
           AUTH_REQUIRED: "AUTH_REQUIRED",
@@ -67,7 +100,9 @@ export function useKitchenData(storeSlug: string) {
           KITCHEN_NOT_INCLUDED: "شاشة المطبخ غير متاحة في باقة المطعم الحالية",
         };
         if (access !== "ALLOWED") {
-          throw new Error(accessMessages[access] || "تعذر التحقق من صلاحية تشغيل المطبخ. حاول مرة أخرى.");
+          throw new Error(
+            accessMessages[access] || "تعذر التحقق من صلاحية تشغيل المطبخ. حاول مرة أخرى.",
+          );
         }
         setStore(foundStore);
         const fetchOrders = async () => {
@@ -80,8 +115,79 @@ export function useKitchenData(storeSlug: string) {
           if (ordersError) throw ordersError;
           if (!cancelled) applyOrders(data || []);
         };
-        await fetchOrders();
-        setConnectionStatus("online");
+        const recover = (): Promise<void> => {
+          if (recovering) {
+            recoverAgain = true;
+            return recovering;
+          }
+          recovering = (async () => {
+            if (cancelled) return;
+            setConnectionStatus("connecting");
+            try {
+              await reconcileKitchen({
+                authorize: async () => {
+                  if (cancelled) throw new Error("AUTH_REQUIRED");
+                  if (!(await hasStoreAccess(storeSlug, ["admin", "kitchen"], supabase))) {
+                    if (!cancelled) {
+                      setOrders([]);
+                      setError("AUTH_REQUIRED");
+                    }
+                    throw new Error("AUTH_REQUIRED");
+                  }
+                  const {
+                    data: { user: currentUser },
+                  } = await supabase.auth.getUser();
+                  if (currentUser?.id !== user.id) {
+                    setOrders([]);
+                    setError("AUTH_REQUIRED");
+                    throw new Error("Account changed");
+                  }
+                },
+                read: () => {
+                  const queue = JSON.parse(localStorage.getItem(queueKey) || "[]");
+                  setPendingSync(Array.isArray(queue) ? queue.length : 0);
+                  return queue;
+                },
+                send: async (command) => {
+                  const { data, error } = await supabase.rpc("kitchen_set_status", {
+                    p_store: foundStore.id,
+                    p_order: command.orderId,
+                    p_expected: command.expected,
+                    p_target: command.status,
+                    p_command: command.command,
+                  });
+                  if (error) throw error;
+                  return data;
+                },
+                remove: (id) => {
+                  const remaining = JSON.parse(localStorage.getItem(queueKey) || "[]").filter(
+                    (c: { command: string }) => c.command !== id,
+                  );
+                  localStorage.setItem(queueKey, JSON.stringify(remaining));
+                  setPendingSync(remaining.length);
+                },
+                snapshot: fetchOrders,
+                stale: () =>
+                  setSyncNotice(
+                    "تغيّر أحد الطلبات من جهاز آخر؛ أُهمل التحديث القديم لحماية الحالة الحالية",
+                  ),
+              });
+              if (!cancelled)
+                setConnectionStatus(subscribed && navigator.onLine ? "online" : "connecting");
+            } catch {
+              if (!cancelled) setConnectionStatus("offline");
+            }
+          })().finally(() => {
+            recovering = null;
+            if (recoverAgain && !cancelled) {
+              recoverAgain = false;
+              void recover();
+            }
+          });
+          return recovering;
+        };
+        recoverRef.current = recover;
+        await recover();
         const reportConnectionIncident = () =>
           supabase.rpc("report_store_incident", {
             p_store_id: foundStore.id,
@@ -101,21 +207,17 @@ export function useKitchenData(storeSlug: string) {
               filter: `store_id=eq.${foundStore.id}`,
             },
             () => {
-              fetchOrders().catch(() => setConnectionStatus("offline"));
+              void recover();
             },
           )
           .on("postgres_changes", { event: "*", schema: "public", table: "order_items" }, () => {
-            fetchOrders().catch(() => setConnectionStatus("offline"));
+            void recover();
           })
           .subscribe((status) => {
             if (status === "CHANNEL_ERROR") reportConnectionIncident();
-            setConnectionStatus(
-              status === "SUBSCRIBED"
-                ? "online"
-                : status === "CHANNEL_ERROR"
-                  ? "offline"
-                  : "connecting",
-            );
+            subscribed = status === "SUBSCRIBED";
+            if (subscribed) void recover();
+            else if (!cancelled) setConnectionStatus("offline");
           });
       } catch (err) {
         setError(err instanceof Error ? err.message : "تعذر تحميل شاشة المطبخ");
@@ -133,39 +235,26 @@ export function useKitchenData(storeSlug: string) {
       }
     };
     window.addEventListener("storage", onStorage);
+    const onOnline = () => {
+      void recoverRef.current();
+    };
+    const onOffline = () => setConnectionStatus("offline");
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    const recoveryTimer = window.setInterval(() => {
+      if (navigator.onLine) void recoverRef.current();
+    }, 30000);
     return () => {
       cancelled = true;
       window.removeEventListener("storage", onStorage);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.clearInterval(recoveryTimer);
+      recoverRef.current = async () => {};
+      queueKeyRef.current = "";
       if (channel) supabase.removeChannel(channel);
     };
   }, [storeSlug]);
-
-  useEffect(() => {
-    if (isMockMode || !store?.id) return;
-    const flushQueue = async () => {
-      const queued = JSON.parse(localStorage.getItem(queueKey) || "[]");
-      if (!queued.length) {
-        setPendingSync(0);
-        return;
-      }
-      const remaining = [];
-      for (const item of queued) {
-        const { error: syncError } = await supabase
-          .from("orders")
-          .update({ status: item.status, ...item.updates })
-          .eq("id", item.orderId)
-          .eq("store_id", store.id);
-        if (syncError) remaining.push(item);
-      }
-      localStorage.setItem(queueKey, JSON.stringify(remaining));
-      setPendingSync(remaining.length);
-      if (!remaining.length) setConnectionStatus("online");
-    };
-    setPendingSync(JSON.parse(localStorage.getItem(queueKey) || "[]").length);
-    window.addEventListener("online", flushQueue);
-    if (navigator.onLine) flushQueue();
-    return () => window.removeEventListener("online", flushQueue);
-  }, [store?.id, queueKey]);
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     const timestampUpdates =
@@ -177,7 +266,7 @@ export function useKitchenData(storeSlug: string) {
             ? { completed_at: new Date().toISOString() }
             : {};
     if (isMockMode) {
-      const next = readDemoData().orders.map((o) =>
+      const next = (readDemoData().orders as Array<{ id: string; status: string }>).map((o) =>
         o.id === orderId
           ? { ...o, status, ...timestampUpdates, updated_at: new Date().toISOString() }
           : o,
@@ -187,7 +276,7 @@ export function useKitchenData(storeSlug: string) {
       return;
     }
     if (!navigator.onLine) {
-      queueStatusUpdate(orderId, status, timestampUpdates);
+      queueStatusUpdate(orderId, status);
       setOrders((prev) =>
         status === "completed" || status === "cancelled"
           ? prev.filter((order) => order.id !== orderId)
@@ -197,12 +286,19 @@ export function useKitchenData(storeSlug: string) {
       );
       return;
     }
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update({ status, ...timestampUpdates })
-      .eq("id", orderId)
-      .eq("store_id", store.id);
+    const current = orders.find((o) => o.id === orderId);
+    const { data: commandResult, error: updateError } = await supabase.rpc("kitchen_set_status", {
+      p_store: store.id,
+      p_order: orderId,
+      p_expected: current?.status,
+      p_target: status,
+      p_command: crypto.randomUUID(),
+    });
     if (updateError) throw updateError;
+    if (commandResult !== "APPLIED") {
+      await recoverRef.current();
+      throw new Error("تغيّرت حالة الطلب؛ تم تحديث الشاشة، راجع الطلب مجددًا");
+    }
     setOrders((prev) =>
       status === "completed" || status === "cancelled"
         ? prev.filter((o) => o.id !== orderId)
@@ -218,7 +314,7 @@ export function useKitchenData(storeSlug: string) {
       delayed_minutes: Number(current?.delayed_minutes || 0) + minutes,
     };
     if (isMockMode) {
-      const next = readDemoData().orders.map((order) =>
+      const next = (readDemoData().orders as Array<{ id: string; status: string }>).map((order) =>
         order.id === orderId ? { ...order, ...updates } : order,
       );
       writeDemo("orders", next);
@@ -235,6 +331,28 @@ export function useKitchenData(storeSlug: string) {
       currentOrders.map((order) => (order.id === orderId ? { ...order, ...updates } : order)),
     );
   };
+  const acknowledgeCurbside = async (orderId: string) => {
+    const acknowledgedAt = new Date().toISOString();
+    if (isMockMode) {
+      const next = (readDemoData().orders as any[]).map((order) =>
+        order.id === orderId ? { ...order, curbside_acknowledged_at: acknowledgedAt } : order,
+      );
+      writeDemo("orders", next);
+      setOrders(next.filter((order) => activeStatuses.includes(order.status)));
+      return;
+    }
+    const { data, error: acknowledgeError } = await supabase.rpc("acknowledge_curbside_arrival", {
+      p_store: store.id,
+      p_order: orderId,
+    });
+    if (acknowledgeError) throw acknowledgeError;
+    if (!data) throw new Error("لم يتم العثور على تنبيه وصول لهذا الطلب");
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === orderId ? { ...order, curbside_acknowledged_at: acknowledgedAt } : order,
+      ),
+    );
+  };
   return {
     store,
     orders,
@@ -245,6 +363,8 @@ export function useKitchenData(storeSlug: string) {
     setNewOrderAlert,
     updateOrderStatus,
     delayOrder,
+    acknowledgeCurbside,
     pendingSync,
+    syncNotice,
   };
 }

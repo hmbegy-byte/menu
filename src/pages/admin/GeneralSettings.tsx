@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { useUnsavedForm } from '../../hooks/useUnsavedForm';
-import WorkingHoursEditor, { normalizeHours } from './WorkingHoursEditor';
+import type { AdminViewData } from "../../lib/adminViewTypes";
+import { useUnsavedForm } from "../../hooks/useUnsavedForm";
+import WorkingHoursEditor from "./WorkingHoursEditor";
+import { normalizeHours } from "../../lib/workingHoursEditorModel";
 import { Settings, MessageCircle, AlertCircle, TimerReset } from "lucide-react";
 
-export default function GeneralSettings({ adminData }) {
+export default function GeneralSettings({ adminData }: { adminData: AdminViewData }) {
   const { store, updateStore, settings, saveStoreSection } = adminData;
 
   const [formData, setFormData] = useState({
@@ -31,27 +33,24 @@ export default function GeneralSettings({ adminData }) {
   );
 
   const [isSaving, setIsSaving] = useState(false);
-  const { dirty, markSaved } = useUnsavedForm({formData,workingHours});
-  const [saveMessage,setSaveMessage] = useState('');
+  const { dirty, markSaved } = useUnsavedForm({ formData, workingHours });
+  const [saveMessage, setSaveMessage] = useState("");
 
-  const handleWorkingHourChange = (id, field, value) => {
-    setWorkingHours((prev) =>
-      prev.map((day) => (day.id === id ? { ...day, [field]: value } : day)),
-    );
-  };
-
-  const saveToLocal = async (e) => {
+  const saveToLocal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (workingHours.some(day => day.isOpen && (!day.from || !day.to || day.from===day.to))) { alert('راجع أوقات الفتح والإغلاق: يجب أن تكون مختلفة.'); return; }
+    if (workingHours.some((day) => day.isOpen && (!day.from || !day.to || day.from === day.to))) {
+      alert("راجع أوقات الفتح والإغلاق: يجب أن تكون مختلفة.");
+      return;
+    }
     setIsSaving(true);
     try {
       await saveStoreSection("settings", formData);
       await updateStore({ working_hours: workingHours });
 
       markSaved();
-      setSaveMessage('تم حفظ الإعدادات العامة بنجاح');
+      setSaveMessage("تم حفظ الإعدادات العامة بنجاح");
     } catch (err) {
-      setSaveMessage('تعذر الحفظ. التعديلات ما زالت في النموذج؛ أعد المحاولة.');
+      setSaveMessage("تعذر الحفظ. التعديلات ما زالت في النموذج؛ أعد المحاولة.");
     } finally {
       setIsSaving(false);
     }
@@ -59,7 +58,9 @@ export default function GeneralSettings({ adminData }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <p role="status" className="text-sm text-muted-foreground">{dirty ? 'لديك تعديلات غير محفوظة' : saveMessage}</p>
+      <p role="status" className="text-sm text-muted-foreground">
+        {dirty ? "لديك تعديلات غير محفوظة" : saveMessage}
+      </p>
       <div>
         <h2 className="text-2xl font-bold text-gray-900">الإعدادات العامة</h2>
         <p className="text-gray-500 mt-1">التحكم في حالة استقبال الطلبات، الضرائب، والرسائل.</p>
@@ -204,7 +205,11 @@ export default function GeneralSettings({ adminData }) {
         </div>
 
         {/* Working Hours */}
-        <WorkingHoursEditor value={workingHours} onChange={setWorkingHours} timezone={store.timezone} />
+        <WorkingHoursEditor
+          value={workingHours}
+          onChange={setWorkingHours}
+          timezone={store.timezone || "Asia/Riyadh"}
+        />
 
         <div className="pt-4 flex justify-end border-t border-gray-100">
           <button

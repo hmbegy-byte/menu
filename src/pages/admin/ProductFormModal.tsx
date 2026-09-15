@@ -1,32 +1,47 @@
 import React, { useState } from "react";
 import { X, Plus, Trash2, Upload } from "lucide-react";
 import { uploadStoreImage } from "../../lib/uploadImage";
+import type {
+  CatalogChoice,
+  CatalogOption,
+  CatalogProduct,
+  CatalogCategory,
+} from "../../lib/catalogTypes";
 
 export default function ProductFormModal({
   store,
   product,
-  setProducts,
   saveEntity,
   categories = [],
   onClose,
+}: {
+  store: { id: string; currency?: string };
+  product: CatalogProduct | null;
+  setProducts?: unknown;
+  saveEntity: (table: string, payload: Record<string, unknown>) => Promise<unknown>;
+  categories?: CatalogCategory[];
+  onClose: () => void;
 }) {
   const isEditing = !!product;
 
   const [formData, setFormData] = useState({
     name: product?.name || "",
     description: product?.description || "",
-    price: product?.price || "",
+    price: product ? String(product.price) : "",
     category_id: product?.category_id || "",
     image_url: product?.image_url || "",
     is_available: product ? product.is_available : true,
     options: product?.options || [],
   });
 
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
+    const { name, value, type } = e.target;
+    const checked = e.target instanceof HTMLInputElement && e.target.checked;
     setFormData((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
@@ -39,65 +54,133 @@ export default function ProductFormModal({
       ...prev,
       options: [
         ...prev.options,
-        { id: crypto.randomUUID(), title: "", required: false, multiple: false, min_selections: 0, max_selections: 1, choices: [{ id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true }] },
+        {
+          id: crypto.randomUUID(),
+          title: "",
+          required: false,
+          multiple: false,
+          min_selections: 0,
+          max_selections: 1,
+          choices: [{ id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true }],
+        },
       ],
     }));
   };
 
-  const removeOptionGroup = (index) => {
+  const removeOptionGroup = (index: number) => {
     setFormData((prev) => ({
       ...prev,
       options: prev.options.filter((_, i) => i !== index),
     }));
   };
 
-  const updateOptionGroup = (index, field, value) => {
-    const newOptions = [...formData.options];
-    newOptions[index][field] = value;
-    setFormData((prev) => ({ ...prev, options: newOptions }));
+  const updateOptionGroup = <K extends keyof CatalogOption>(
+    index: number,
+    field: K,
+    value: CatalogOption[K],
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.map((group, i) => (i === index ? { ...group, [field]: value } : group)),
+    }));
   };
 
-  const addChoice = (groupIndex) => {
-    const newOptions = [...formData.options];
-    newOptions[groupIndex].choices.push({ id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true });
-    setFormData((prev) => ({ ...prev, options: newOptions }));
+  const addChoice = (groupIndex: number) => {
+    const choice = { id: crypto.randomUUID(), name: "", extra_price: 0, is_available: true };
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.map((group, i) =>
+        i === groupIndex ? { ...group, choices: [...group.choices, choice] } : group,
+      ),
+    }));
   };
 
-  const removeChoice = (groupIndex, choiceIndex) => {
-    const newOptions = [...formData.options];
-    newOptions[groupIndex].choices = newOptions[groupIndex].choices.filter(
-      (_, i) => i !== choiceIndex,
-    );
-    setFormData((prev) => ({ ...prev, options: newOptions }));
+  const removeChoice = (groupIndex: number, choiceIndex: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.map((group, i) =>
+        i === groupIndex
+          ? { ...group, choices: group.choices.filter((_, j) => j !== choiceIndex) }
+          : group,
+      ),
+    }));
   };
 
-  const updateChoice = (groupIndex, choiceIndex, field, value) => {
-    const newOptions = [...formData.options];
-    newOptions[groupIndex].choices[choiceIndex][field] = value;
-    setFormData((prev) => ({ ...prev, options: newOptions }));
+  const updateChoice = <K extends keyof CatalogChoice>(
+    groupIndex: number,
+    choiceIndex: number,
+    field: K,
+    value: CatalogChoice[K],
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      options: prev.options.map((group, i) =>
+        i === groupIndex
+          ? {
+              ...group,
+              choices: group.choices.map((choice, j) =>
+                j === choiceIndex ? { ...choice, [field]: value } : choice,
+              ),
+            }
+          : group,
+      ),
+    }));
   };
   // -----------------------------
-  const applyFamilyPlatterTemplate = () => setFormData((prev) => ({ ...prev, options: [
-    { id: "serving-size", title: "حجم التقديم", required: true, multiple: false, min_selections: 1, max_selections: 1, choices: [
-      { id: "serves-2", name: "يكفي شخصين", extra_price: 0, is_available: true },
-      { id: "serves-4", name: "يكفي 4 أشخاص", extra_price: 60, is_available: true },
-      { id: "serves-6", name: "يكفي 6 أشخاص", extra_price: 110, is_available: true },
-    ]},
-    { id: "sides", title: "الأطباق الجانبية", required: true, multiple: true, min_selections: 2, max_selections: 3, choices: [
-      { id: "rice", name: "أرز", extra_price: 0, is_available: true }, { id: "fries", name: "بطاطس", extra_price: 0, is_available: true }, { id: "salad", name: "سلطة", extra_price: 8, is_available: true },
-    ]},
-    { id: "preparation", title: "طريقة التحضير", required: true, multiple: false, min_selections: 1, max_selections: 1, choices: [
-      { id: "medium", name: "متوسط", extra_price: 0, is_available: true }, { id: "well-done", name: "مستوي جيدًا", extra_price: 0, is_available: true },
-    ]},
-  ] }));
+  const applyFamilyPlatterTemplate = () =>
+    setFormData((prev) => ({
+      ...prev,
+      options: [
+        {
+          id: "serving-size",
+          title: "حجم التقديم",
+          required: true,
+          multiple: false,
+          min_selections: 1,
+          max_selections: 1,
+          choices: [
+            { id: "serves-2", name: "يكفي شخصين", extra_price: 0, is_available: true },
+            { id: "serves-4", name: "يكفي 4 أشخاص", extra_price: 60, is_available: true },
+            { id: "serves-6", name: "يكفي 6 أشخاص", extra_price: 110, is_available: true },
+          ],
+        },
+        {
+          id: "sides",
+          title: "الأطباق الجانبية",
+          required: true,
+          multiple: true,
+          min_selections: 2,
+          max_selections: 3,
+          choices: [
+            { id: "rice", name: "أرز", extra_price: 0, is_available: true },
+            { id: "fries", name: "بطاطس", extra_price: 0, is_available: true },
+            { id: "salad", name: "سلطة", extra_price: 8, is_available: true },
+          ],
+        },
+        {
+          id: "preparation",
+          title: "طريقة التحضير",
+          required: true,
+          multiple: false,
+          min_selections: 1,
+          max_selections: 1,
+          choices: [
+            { id: "medium", name: "متوسط", extra_price: 0, is_available: true },
+            { id: "well-done", name: "مستوي جيدًا", extra_price: 0, is_available: true },
+          ],
+        },
+      ],
+    }));
 
-  const handleImageFileChange = (e) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0]);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>,
+  ) => {
     e.preventDefault();
     setIsSaving(true);
 
@@ -266,7 +349,13 @@ export default function ProductFormModal({
           <div className="border-t border-gray-200 pt-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-gray-900">خيارات المنتج (إضافات، أحجام...)</h3>
-              <button type="button" onClick={applyFamilyPlatterTemplate} className="text-xs font-bold text-purple-700 underline">قالب صينية عائلية</button>
+              <button
+                type="button"
+                onClick={applyFamilyPlatterTemplate}
+                className="text-xs font-bold text-purple-700 underline"
+              >
+                قالب صينية عائلية
+              </button>
               <button
                 type="button"
                 onClick={addOptionGroup}
@@ -303,22 +392,55 @@ export default function ProductFormModal({
                   </div>
                   <div className="flex items-end pb-2">
                     <div className="space-y-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={group.required}
-                        onChange={(e) => updateOptionGroup(groupIdx, "required", e.target.checked)}
-                        className="w-4 h-4 text-purple-600 rounded"
-                      />
-                      <span className="text-sm text-gray-700">هذا الخيار إجباري للعميل</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={Boolean(group.multiple)} onChange={(e) => updateOptionGroup(groupIdx,"multiple",e.target.checked)} /><span className="text-sm text-gray-700">يسمح بأكثر من اختيار</span></label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={group.required}
+                          onChange={(e) =>
+                            updateOptionGroup(groupIdx, "required", e.target.checked)
+                          }
+                          className="w-4 h-4 text-purple-600 rounded"
+                        />
+                        <span className="text-sm text-gray-700">هذا الخيار إجباري للعميل</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(group.multiple)}
+                          onChange={(e) =>
+                            updateOptionGroup(groupIdx, "multiple", e.target.checked)
+                          }
+                        />
+                        <span className="text-sm text-gray-700">يسمح بأكثر من اختيار</span>
+                      </label>
                     </div>
                   </div>
                 </div>
                 <div className="mb-4 grid grid-cols-2 gap-3">
-                  <label className="text-xs text-gray-600">الحد الأدنى<input type="number" min="0" value={group.min_selections ?? (group.required ? 1 : 0)} onChange={(e) => updateOptionGroup(groupIdx,"min_selections",Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2" /></label>
-                  <label className="text-xs text-gray-600">الحد الأقصى<input type="number" min="1" value={group.max_selections ?? 1} onChange={(e) => updateOptionGroup(groupIdx,"max_selections",Number(e.target.value))} className="mt-1 w-full rounded-lg border p-2" /></label>
+                  <label className="text-xs text-gray-600">
+                    الحد الأدنى
+                    <input
+                      type="number"
+                      min="0"
+                      value={group.min_selections ?? (group.required ? 1 : 0)}
+                      onChange={(e) =>
+                        updateOptionGroup(groupIdx, "min_selections", Number(e.target.value))
+                      }
+                      className="mt-1 w-full rounded-lg border p-2"
+                    />
+                  </label>
+                  <label className="text-xs text-gray-600">
+                    الحد الأقصى
+                    <input
+                      type="number"
+                      min="1"
+                      value={group.max_selections ?? 1}
+                      onChange={(e) =>
+                        updateOptionGroup(groupIdx, "max_selections", Number(e.target.value))
+                      }
+                      className="mt-1 w-full rounded-lg border p-2"
+                    />
+                  </label>
                 </div>
 
                 <div className="bg-gray-50 p-3 rounded-xl space-y-2 border border-gray-100">
@@ -356,7 +478,16 @@ export default function ProductFormModal({
                       >
                         <X size={16} />
                       </button>
-                      <label className="flex items-center gap-1 text-xs"><input type="checkbox" checked={choice.is_available !== false} onChange={(e) => updateChoice(groupIdx,choiceIdx,"is_available",e.target.checked)} />متاح</label>
+                      <label className="flex items-center gap-1 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={choice.is_available !== false}
+                          onChange={(e) =>
+                            updateChoice(groupIdx, choiceIdx, "is_available", e.target.checked)
+                          }
+                        />
+                        متاح
+                      </label>
                     </div>
                   ))}
                   <button

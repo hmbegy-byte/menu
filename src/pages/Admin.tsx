@@ -27,6 +27,8 @@ import {
   Gift,
   Megaphone,
   Workflow,
+  WalletCards,
+  TrendingUp,
 } from "lucide-react";
 
 import StoreSettings from "./admin/StoreSettings";
@@ -40,7 +42,7 @@ import AppearanceSettings from "./admin/AppearanceSettings";
 import GeneralSettings from "./admin/GeneralSettings";
 import PaymentSettings from "./admin/PaymentSettings";
 import QRCodeGenerator from "./admin/QRCodeGenerator";
-import { ADMIN_FEATURES } from '../lib/adminFeatures';
+import { ADMIN_FEATURES } from "../lib/adminFeatures";
 import BranchManager from "./admin/BranchManager";
 import TeamManager from "./admin/TeamManager";
 import WhiteLabelSettings from "./admin/WhiteLabelSettings";
@@ -55,17 +57,21 @@ import LoyaltySettings from "./admin/LoyaltySettings";
 import CampaignManager from "./admin/CampaignManager";
 import OperationsSuite from "./admin/OperationsSuite";
 import RetentionManager from "./admin/RetentionManager";
+import ExpensesManager from "./admin/ExpensesManager";
+import ProfitabilityReport from "./admin/ProfitabilityReport";
 import { signOutStore, isAdminUnlocked, lockAdmin } from "../lib/access";
-import AdminGate from './AdminGate';
+import AdminGate from "./AdminGate";
 
-export default function Admin({ storeSlug }) {
+export default function Admin({ storeSlug }: { storeSlug: string }) {
   const [unlocked, setUnlocked] = useState(() => isAdminUnlocked(storeSlug));
   useEffect(() => {
     if (!unlocked) return;
     let lastActivity = Date.now();
-    const touch = () => { lastActivity = Date.now(); };
-    const events = ['pointerdown', 'keydown', 'touchstart', 'scroll'];
-    events.forEach(name => window.addEventListener(name, touch, { passive: true }));
+    const touch = () => {
+      lastActivity = Date.now();
+    };
+    const events = ["pointerdown", "keydown", "touchstart", "scroll"];
+    events.forEach((name) => window.addEventListener(name, touch, { passive: true }));
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity >= 15 * 60 * 1000) {
         lockAdmin(storeSlug);
@@ -74,7 +80,7 @@ export default function Admin({ storeSlug }) {
     }, 1000);
     return () => {
       window.clearInterval(timer);
-      events.forEach(name => window.removeEventListener(name, touch));
+      events.forEach((name) => window.removeEventListener(name, touch));
       lockAdmin(storeSlug);
     };
   }, [unlocked, storeSlug]);
@@ -82,11 +88,12 @@ export default function Admin({ storeSlug }) {
   return <AdminContent storeSlug={storeSlug} />;
 }
 
-function AdminContent({ storeSlug }) {
+function AdminContent({ storeSlug }: { storeSlug: string }) {
   const navigate = useNavigate();
   const [activeTab, changeTab] = useState("overview");
   const setActiveTab = (tab: string) => {
-    if (tab === activeTab || window.dispatchEvent(new Event('admin:leave', {cancelable:true}))) changeTab(tab);
+    if (tab === activeTab || window.dispatchEvent(new Event("admin:leave", { cancelable: true })))
+      changeTab(tab);
   };
 
   const adminData = useAdminData(storeSlug);
@@ -125,6 +132,8 @@ function AdminContent({ storeSlug }) {
     { id: "reports", label: "التقارير", icon: BarChart3 },
     { id: "campaigns", label: "روابط الحملات", icon: Megaphone },
     { id: "operations", label: "التشغيل المتقدم", icon: Workflow },
+    { id: "expenses", label: "المصروفات", icon: WalletCards },
+    { id: "profitability", label: "الربحية التشغيلية", icon: TrendingUp },
     { id: "customers", label: "العملاء", icon: ContactRound },
     { id: "retention", label: "الاحتفاظ والعملاء", icon: Users },
     { id: "categories", label: "التصنيفات", icon: FolderTree },
@@ -147,8 +156,13 @@ function AdminContent({ storeSlug }) {
   ];
 
   return (
-    <div className="admin-shell min-h-screen bg-background text-foreground flex flex-col md:flex-row" dir="rtl">
-      <a href="#admin-content" className="skip-link">انتقل إلى المحتوى</a>
+    <div
+      className="admin-shell min-h-screen bg-background text-foreground flex flex-col md:flex-row"
+      dir="rtl"
+    >
+      <a href="#admin-content" className="skip-link">
+        انتقل إلى المحتوى
+      </a>
       {/* Sidebar Navigation */}
       <aside className="w-full md:w-64 md:shrink-0 bg-card border-b md:border-b-0 md:border-l border-border flex flex-col md:sticky top-0 md:h-dvh z-20">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -160,46 +174,118 @@ function AdminContent({ storeSlug }) {
         </div>
 
         <div className="px-4 pb-4 md:hidden">
-          <label htmlFor="admin-section" className="mb-2 block text-sm font-bold">القسم الحالي</label>
-          <select id="admin-section" value={activeTab} onChange={event=>setActiveTab(event.target.value)} className="w-full min-h-12 rounded-xl border border-input bg-background px-3 text-foreground">
-            {navItems.filter(item=>!ADMIN_FEATURES[item.id]||adminData.features.includes(ADMIN_FEATURES[item.id])).map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
+          <label htmlFor="admin-section" className="mb-2 block text-sm font-bold">
+            القسم الحالي
+          </label>
+          <select
+            id="admin-section"
+            value={activeTab}
+            onChange={(event) => setActiveTab(event.target.value)}
+            className="w-full min-h-12 rounded-xl border border-input bg-background px-3 text-foreground"
+          >
+            {navItems
+              .filter(
+                (item) =>
+                  !ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id]),
+              )
+              .map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.label}
+                </option>
+              ))}
           </select>
         </div>
-        <nav aria-label="أقسام إدارة المطعم" className="hidden md:flex flex-1 min-h-0 p-4 flex-col gap-2 overflow-y-auto">
+        <nav
+          aria-label="أقسام إدارة المطعم"
+          className="hidden md:flex flex-1 min-h-0 p-4 flex-col gap-2 overflow-y-auto"
+        >
           {[
-            {name:'التشغيل اليومي',ids:['overview','orders','delivery','health']},
-            {name:'القائمة والمنتجات',ids:['categories','products','addons','offers','qrcode']},
-            {name:'العملاء والتقارير',ids:['customers','reports','campaigns','loyalty','retention','operations']},
-            {name:'الإعدادات والحساب',ids:['profile','appearance','settings','payment','branches','team','white-label','subscription','billing','data']},
-          ].map(group=><details key={group.name} open={group.ids.includes(activeTab)} className="border-b border-border pb-2">
-          <summary className="cursor-pointer py-3 text-sm font-bold text-muted-foreground">{group.name}</summary>
-          <div className="flex flex-col gap-1">
-          {navItems.filter(item => group.ids.includes(item.id) && (!ADMIN_FEATURES[item.id] || adminData.features.includes(ADMIN_FEATURES[item.id]))).map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                aria-current={activeTab === item.id ? 'page' : undefined}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors whitespace-nowrap ${
-                  activeTab === item.id
-                    ? "bg-purple-50 text-purple-700 font-bold"
-                    : "text-gray-600 hover:bg-gray-50"
-                }`}
-              >
-                <Icon size={20} />
-                <span>{item.label}</span>
-              </button>
-            );
-          })}
-          </div></details>)}
+            { name: "التشغيل اليومي", ids: ["overview", "orders", "delivery", "health"] },
+            {
+              name: "القائمة والمنتجات",
+              ids: ["categories", "products", "addons", "offers", "qrcode"],
+            },
+            {
+              name: "العملاء والتقارير",
+              ids: [
+                "customers",
+                "reports",
+                "profitability",
+                "expenses",
+                "campaigns",
+                "loyalty",
+                "retention",
+                "operations",
+              ],
+            },
+            {
+              name: "الإعدادات والحساب",
+              ids: [
+                "profile",
+                "appearance",
+                "settings",
+                "payment",
+                "branches",
+                "team",
+                "white-label",
+                "subscription",
+                "billing",
+                "data",
+              ],
+            },
+          ].map((group) => (
+            <details
+              key={group.name}
+              open={group.ids.includes(activeTab)}
+              className="border-b border-border pb-2"
+            >
+              <summary className="cursor-pointer py-3 text-sm font-bold text-muted-foreground">
+                {group.name}
+              </summary>
+              <div className="flex flex-col gap-1">
+                {navItems
+                  .filter(
+                    (item) =>
+                      group.ids.includes(item.id) &&
+                      (!ADMIN_FEATURES[item.id] ||
+                        adminData.features.includes(ADMIN_FEATURES[item.id])),
+                  )
+                  .map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveTab(item.id)}
+                        aria-current={activeTab === item.id ? "page" : undefined}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors whitespace-nowrap ${
+                          activeTab === item.id
+                            ? "bg-purple-50 text-purple-700 font-bold"
+                            : "text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <Icon size={20} />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </details>
+          ))}
         </nav>
 
         <div className="px-4 py-2 md:p-4 border-t border-border">
-          <a href={`/s/${encodeURIComponent(store.slug)}`} target="_blank" rel="noreferrer" className="flex items-center gap-3 px-4 py-3 rounded-xl text-primary hover:bg-muted"><Store size={20} aria-hidden="true"/>معاينة المتجر<span className="sr-only">في نافذة جديدة</span></a>
+          <a
+            href={`/s/${encodeURIComponent(store.slug)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-primary hover:bg-muted"
+          >
+            <Store size={20} aria-hidden="true" />
+            معاينة المتجر<span className="sr-only">في نافذة جديدة</span>
+          </a>
           <button
             onClick={async () => {
-              if (!window.dispatchEvent(new Event('admin:leave', {cancelable:true}))) return;
+              if (!window.dispatchEvent(new Event("admin:leave", { cancelable: true }))) return;
               await signOutStore();
               navigate({ to: "/admin" });
             }}
@@ -214,43 +300,49 @@ function AdminContent({ storeSlug }) {
       {/* Main Content Area */}
       <main id="admin-content" tabIndex={-1} className="flex-1 min-w-0 p-4 md:p-8">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
-          {ADMIN_FEATURES[activeTab] && !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p> : <>
-          {activeTab === "overview" && (
-            <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
+          {ADMIN_FEATURES[activeTab] && !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? (
+            <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p>
+          ) : (
+            <>
+              {activeTab === "overview" && (
+                <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
+              )}
+              {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
+              {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
+              {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
+              {activeTab === "campaigns" && <CampaignManager adminData={adminData} />}
+              {activeTab === "operations" && <OperationsSuite adminData={adminData} />}
+              {activeTab === "expenses" && <ExpensesManager adminData={adminData} />}
+              {activeTab === "profitability" && <ProfitabilityReport adminData={adminData} />}
+              {activeTab === "customers" && <CustomersManager adminData={adminData} />}
+              {activeTab === "retention" && <RetentionManager adminData={adminData} />}
+              {activeTab === "categories" && <CategoryManager adminData={adminData} />}
+              {activeTab === "products" && (
+                <ProductManager
+                  store={store}
+                  products={adminData.products}
+                  setProducts={adminData.setProducts}
+                  categories={adminData.categories}
+                  adminData={adminData}
+                />
+              )}
+              {activeTab === "offers" && <OffersManager adminData={adminData} />}
+              {activeTab === "addons" && <AddonsManager adminData={adminData} />}
+              {activeTab === "profile" && <RestaurantProfile adminData={adminData} />}
+              {activeTab === "appearance" && <AppearanceSettings adminData={adminData} />}
+              {activeTab === "settings" && <GeneralSettings adminData={adminData} />}
+              {activeTab === "payment" && <PaymentSettings adminData={adminData} />}
+              {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
+              {activeTab === "branches" && <BranchManager adminData={adminData} />}
+              {activeTab === "team" && <TeamManager adminData={adminData} />}
+              {activeTab === "loyalty" && <LoyaltySettings adminData={adminData} />}
+              {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
+              {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
+              {activeTab === "billing" && <BillingAddons adminData={adminData} />}
+              {activeTab === "health" && <OperationalHealth adminData={adminData} />}
+              {activeTab === "data" && <DataTools adminData={adminData} />}
+            </>
           )}
-          {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
-          {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
-          {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
-          {activeTab === "campaigns" && <CampaignManager adminData={adminData} />}
-          {activeTab === "operations" && <OperationsSuite adminData={adminData} />}
-          {activeTab === "customers" && <CustomersManager adminData={adminData} />}
-          {activeTab === "retention" && <RetentionManager adminData={adminData} />}
-          {activeTab === "categories" && <CategoryManager adminData={adminData} />}
-          {activeTab === "products" && (
-            <ProductManager
-              store={store}
-              products={adminData.products}
-              setProducts={adminData.setProducts}
-              categories={adminData.categories}
-              adminData={adminData}
-            />
-          )}
-          {activeTab === "offers" && <OffersManager adminData={adminData} />}
-          {activeTab === "addons" && <AddonsManager adminData={adminData} />}
-          {activeTab === "profile" && <RestaurantProfile adminData={adminData} />}
-          {activeTab === "appearance" && <AppearanceSettings adminData={adminData} />}
-          {activeTab === "settings" && <GeneralSettings adminData={adminData} />}
-          {activeTab === "payment" && <PaymentSettings adminData={adminData} />}
-          {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
-          {activeTab === "branches" && <BranchManager adminData={adminData} />}
-          {activeTab === "team" && <TeamManager adminData={adminData} />}
-          {activeTab === "loyalty" && <LoyaltySettings adminData={adminData} />}
-          {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
-          {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
-          {activeTab === "billing" && <BillingAddons adminData={adminData} />}
-          {activeTab === "health" && <OperationalHealth adminData={adminData} />}
-          {activeTab === "data" && <DataTools adminData={adminData} />}
-          </>}
         </div>
       </main>
     </div>

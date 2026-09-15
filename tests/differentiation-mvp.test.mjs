@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const migration = readFileSync(new URL("../supabase/migrations/20260907000200_differentiation_mvp.sql", import.meta.url), "utf8");
+const migration = readFileSync(
+  new URL("../supabase/migrations/20260907000200_differentiation_mvp.sql", import.meta.url),
+  "utf8",
+);
 const cart = readFileSync(new URL("../src/components/menu/CartSheet.tsx", import.meta.url), "utf8");
 
 test("campaign conversion is unique per order", () => {
@@ -38,6 +41,6 @@ test("option selection bounds and availability are enforced in the database", ()
 
 test("checkout ignores client prices and sends structured option identifiers", () => {
   assert.match(cart, /selectedOptions/);
-  assert.match(cart, /create_order_v4/);
+  assert.match(cart, /create_order_v5/);
   assert.match(migration, /select \* into v_product from public\.products/);
 });

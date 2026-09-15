@@ -5,10 +5,11 @@ import { useKitchenData } from "../hooks/useKitchenData";
 import OrderCard from "../components/OrderCard";
 import PrintReceipt from "../components/PrintReceipt";
 import { signOutStore } from "../lib/access";
-import StaffScanner from './StaffScanner';
-import { Dialog, DialogContent, DialogTitle } from '../components/ui/dialog';
+import StaffScanner from "./StaffScanner";
+import { Dialog, DialogContent, DialogTitle } from "../components/ui/dialog";
+import type { KitchenOrder } from "../lib/orderTypes";
 
-export default function Kitchen({ storeSlug }) {
+export default function Kitchen({ storeSlug }: { storeSlug: string }) {
   const [scannerOpen, setScannerOpen] = useState(false);
   const navigate = useNavigate();
   const {
@@ -21,23 +22,28 @@ export default function Kitchen({ storeSlug }) {
     updateOrderStatus,
     connectionStatus,
     delayOrder,
+    acknowledgeCurbside,
     pendingSync,
+    syncNotice,
   } = useKitchenData(storeSlug);
 
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [printOrder, setPrintOrder] = useState(null);
+  const [printOrder, setPrintOrder] = useState<KitchenOrder | null>(null);
   const [actionError, setActionError] = useState("");
 
-  const audioCtxRef = useRef(null);
-  const oscillatorRef = useRef(null);
-  const wakeLockRef = useRef(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const oscillatorRef = useRef<OscillatorNode | null>(null);
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
   // Initialize Wake Lock and Audio Context
   const enableAlerts = async () => {
     try {
       if (!audioCtxRef.current) {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        audioCtxRef.current = new AudioContext();
+        const AudioContextClass =
+          window.AudioContext ||
+          (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioContextClass) throw new Error("Audio unavailable");
+        audioCtxRef.current = new AudioContextClass();
       }
       if (audioCtxRef.current.state === "suspended") {
         await audioCtxRef.current.resume();
@@ -85,7 +91,7 @@ export default function Kitchen({ storeSlug }) {
   }, [alertsEnabled]);
 
   useEffect(() => {
-    let interval;
+    let interval: ReturnType<typeof setInterval> | undefined;
     if (newOrderAlert && alertsEnabled) {
       playBeep(); // initial
       interval = setInterval(playBeep, 1500); // repeat every 1.5s
@@ -112,7 +118,7 @@ export default function Kitchen({ storeSlug }) {
     };
   }, [alertsEnabled]);
 
-  const handleUpdateStatus = async (orderId, newStatus) => {
+  const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     setActionError("");
     try {
       await updateOrderStatus(orderId, newStatus);
@@ -128,13 +134,13 @@ export default function Kitchen({ storeSlug }) {
     }
   };
 
-  const handlePrint = (order) => {
+  const handlePrint = (order: KitchenOrder) => {
     setPrintOrder(order);
     setTimeout(() => {
       window.print();
     }, 100);
   };
-  const handleDelay = async (orderId, minutes) => {
+  const handleDelay = async (orderId: string, minutes: number) => {
     setActionError("");
     try {
       await delayOrder(orderId, minutes);
@@ -186,7 +192,12 @@ export default function Kitchen({ storeSlug }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <button onClick={() => setScannerOpen(true)} className="rounded-lg border px-4 py-2 font-bold">ماسح الولاء</button>
+            <button
+              onClick={() => setScannerOpen(true)}
+              className="rounded-lg border px-4 py-2 font-bold"
+            >
+              ماسح الولاء
+            </button>
             <Dialog open={scannerOpen} onOpenChange={setScannerOpen}>
               <DialogContent className="max-h-[90vh] overflow-y-auto" dir="rtl">
                 <DialogTitle>ماسح ولاء العملاء</DialogTitle>
@@ -241,7 +252,20 @@ export default function Kitchen({ storeSlug }) {
         )}
 
         {/* Board */}
-        {!['online','demo'].includes(connectionStatus) && <div role="alert" className="m-4 rounded-xl border border-red-400 bg-red-50 p-4 font-bold text-red-700">الاتصال المباشر غير متاح. قد تتأخر الطلبات والتحديثات؛ تحقق من الاتصال قبل الاعتماد على الشاشة.</div>}
+        {syncNotice && (
+          <p role="status" className="m-4 rounded-xl border p-4">
+            {syncNotice}
+          </p>
+        )}
+        {!["online", "demo"].includes(connectionStatus) && (
+          <div
+            role="alert"
+            className="m-4 rounded-xl border border-red-400 bg-red-50 p-4 font-bold text-red-700"
+          >
+            الاتصال المباشر غير متاح. قد تتأخر الطلبات والتحديثات؛ تحقق من الاتصال قبل الاعتماد على
+            الشاشة.
+          </div>
+        )}
         <main className="flex-1 p-4 grid grid-cols-1 xl:grid-cols-3 gap-4 items-start">
           {/* Column 1: Pending */}
           <div className="min-w-0 flex flex-col gap-3">
@@ -258,6 +282,7 @@ export default function Kitchen({ storeSlug }) {
                   order={order}
                   store={store}
                   onUpdateStatus={handleUpdateStatus}
+                  onAcknowledgeCurbside={acknowledgeCurbside}
                   onPrint={handlePrint}
                   onDelay={handleDelay}
                 />
@@ -280,6 +305,7 @@ export default function Kitchen({ storeSlug }) {
                   order={order}
                   store={store}
                   onUpdateStatus={handleUpdateStatus}
+                  onAcknowledgeCurbside={acknowledgeCurbside}
                   onPrint={handlePrint}
                   onDelay={handleDelay}
                 />
@@ -302,6 +328,7 @@ export default function Kitchen({ storeSlug }) {
                   order={order}
                   store={store}
                   onUpdateStatus={handleUpdateStatus}
+                  onAcknowledgeCurbside={acknowledgeCurbside}
                   onPrint={handlePrint}
                   onDelay={handleDelay}
                 />

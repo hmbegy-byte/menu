@@ -111,10 +111,8 @@ export function usePlatformData(enabled: boolean) {
     if (!plan) throw new Error("الباقة غير موجودة");
     const { error: updateError } = await supabase
       .from("subscriptions")
-      .upsert(
-        { organization_id: organizationId, plan_id: plan.id, status: "active" },
-        { onConflict: "organization_id" },
-      );
+      .update({ plan_id: plan.id })
+      .eq("organization_id", organizationId);
     if (updateError) throw updateError;
     await load();
   };
@@ -157,47 +155,26 @@ export function usePlatformData(enabled: boolean) {
       setState((current) => ({ ...current, organizations, stores, subscriptions }));
       return organization;
     }
-    const { data: organization, error: organizationError } = await supabase
-      .from("organizations")
-      .insert({
-        name: input.name,
-        legal_name: input.legal_name || input.name,
-        owner_email: input.owner_email,
-        status: "trial",
-      })
-      .select()
-      .single();
+    // Retain the request across a lost response/reload. The server owns the transaction.
+    const requestKey = `onboard:${input.slug}`;
+    const request = sessionStorage.getItem(requestKey) || crypto.randomUUID();
+    sessionStorage.setItem(requestKey, request);
+    const { data: organizationId, error: organizationError } = await supabase.rpc(
+      "onboard_restaurant",
+      {
+        p_name: input.name,
+        p_slug: input.slug,
+        p_email: input.owner_email,
+        p_plan: input.plan_id,
+        p_phone: input.phone_whatsapp,
+        p_request: request,
+        p_legal_name: input.legal_name || input.name,
+        p_branch_name: input.branch_name || "الفرع الرئيسي",
+      },
+    );
     if (organizationError) throw organizationError;
-    const plan = state.plans.find((item) => item.code === input.plan_id);
-    const { data: store, error: storeError } = await supabase
-      .from("stores")
-      .insert({
-        organization_id: organization.id,
-        name: input.name,
-        branch_name: input.branch_name || "الفرع الرئيسي",
-        slug: input.slug,
-        phone_whatsapp: input.phone_whatsapp,
-        currency: "SAR",
-      })
-      .select()
-      .single();
-    if (storeError) throw storeError;
-    const { error: subscriptionError } = await supabase.from("subscriptions").insert({
-      organization_id: organization.id,
-      plan_id: plan.id,
-      status: "trial",
-      current_period_end: trialEndsAt,
-    });
-    if (subscriptionError) throw subscriptionError;
-    const { error: invitationError } = await supabase.from("staff_invitations").insert({
-      organization_id: organization.id,
-      store_id: store.id,
-      email: input.owner_email,
-      role: "admin",
-    });
-    if (invitationError) throw invitationError;
     await load();
-    return organization;
+    return { id: organizationId };
   };
   const issueInvoice = async (organizationId: string) => {
     const subscription = state.subscriptions.find(

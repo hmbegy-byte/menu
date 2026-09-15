@@ -2,10 +2,20 @@ import React, { useState } from "react";
 import { Plus, Edit2, Trash2, Image as ImageIcon, Upload, X } from "lucide-react";
 import { uploadStoreImage } from "../../lib/uploadImage";
 
-export default function AddonsManager({ adminData }) {
+type Addon = { id: string; title: string; price: number; image_url: string };
+export default function AddonsManager({
+  adminData,
+}: {
+  adminData: {
+    addons: Addon[];
+    store: { id: string; currency?: string };
+    saveEntity: (table: string, value: Omit<Addon, "id"> & { id?: string }) => Promise<unknown>;
+    deleteEntity: (table: string, id: string) => Promise<unknown>;
+  };
+}) {
   const { addons, saveEntity, deleteEntity, store } = adminData;
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingAddon, setEditingAddon] = useState(null);
+  const [editingAddon, setEditingAddon] = useState<Addon | null>(null);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -13,14 +23,18 @@ export default function AddonsManager({ adminData }) {
     image_url: "",
   });
 
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleOpenModal = (addon = null) => {
+  const handleOpenModal = (addon: Addon | null = null) => {
     setImageFile(null);
     if (addon) {
       setEditingAddon(addon);
-      setFormData({ ...addon });
+      setFormData({
+        title: addon.title,
+        price: String(addon.price),
+        image_url: addon.image_url || "",
+      });
     } else {
       setEditingAddon(null);
       setFormData({
@@ -32,13 +46,13 @@ export default function AddonsManager({ adminData }) {
     setIsModalOpen(true);
   };
 
-  const handleImageFileChange = (e) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0]);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -63,7 +77,7 @@ export default function AddonsManager({ adminData }) {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (confirm("هل أنت متأكد من حذف هذه الإضافة؟")) {
       try {
         await deleteEntity("addons", id);
@@ -121,7 +135,9 @@ export default function AddonsManager({ adminData }) {
                   <p className="font-bold text-gray-900">{addon.title}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="font-bold text-purple-600">{addon.price} EGP</p>
+                  <p className="font-bold text-purple-600">
+                    {addon.price} {store.currency || "SAR"}
+                  </p>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex items-center gap-2">
@@ -144,7 +160,7 @@ export default function AddonsManager({ adminData }) {
 
             {addons.length === 0 && (
               <tr>
-                <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   لا توجد إضافات سريعة.
                 </td>
               </tr>
@@ -182,7 +198,9 @@ export default function AddonsManager({ adminData }) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">السعر (EGP)</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  السعر ({store.currency || "SAR"})
+                </label>
                 <input
                   type="number"
                   step="0.01"

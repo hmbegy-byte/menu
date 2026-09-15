@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Public tracking RPC types are added after applying the database migration. */
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChefHat, Clock3, PackageCheck, Truck } from "lucide-react";
+import { CarFront, Check, ChefHat, Clock3, ExternalLink, PackageCheck, Truck } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isMockMode, supabase } from "../lib/supabase";
-import { readDemoData } from "../lib/storeDefaults";
+import { readDemoData, writeDemo } from "../lib/storeDefaults";
 import { formatCurrency } from "../lib/currency";
+import { isValidGoogleReviewUrl } from "../lib/restaurantOperations.mjs";
 
 export const Route = createFileRoute("/track/$tracking_token")({ component: TrackingPage });
 const steps = [
@@ -18,16 +19,28 @@ function TrackingPage() {
   const [order, setOrder] = useState<any>(null);
   const [error, setError] = useState("");
   const [usualToken, setUsualToken] = useState("");
+  const [arrivalBusy, setArrivalBusy] = useState(false);
+  const [arrivalMessage, setArrivalMessage] = useState("");
   useEffect(() => {
     let channel: any;
     const load = async () => {
       try {
         if (isMockMode) {
-          const found = readDemoData().orders.find(
-            (item) => item.tracking_token === tracking_token || item.id === tracking_token,
+          const demo = readDemoData();
+          const found = demo.orders.find(
+            (item: { tracking_token?: string; id: string }) =>
+              item.tracking_token === tracking_token || item.id === tracking_token,
           );
           if (!found) throw new Error("رابط التتبع غير صحيح");
-          setOrder(found);
+          setOrder({
+            ...found,
+            google_review_url:
+              found.status === "completed" &&
+              demo.settings.googleReviewEnabled &&
+              isValidGoogleReviewUrl(demo.settings.googleReviewUrl)
+                ? demo.settings.googleReviewUrl
+                : null,
+          });
           return;
         }
         const { data, error: trackError } = await supabase.rpc("track_order", {
@@ -69,6 +82,35 @@ function TrackingPage() {
     steps.findIndex((step) => step.id === order.status),
   );
   const promised = order.promised_at ? new Date(order.promised_at) : null;
+  const canAnnounceArrival =
+    order.pickup_method === "curbside" && ["preparing", "ready"].includes(order.status);
+  const announceArrival = async () => {
+    if (order.curbside_arrived_at || arrivalBusy) return;
+    setArrivalBusy(true);
+    try {
+      if (isMockMode) {
+        const curbsideArrivedAt = new Date().toISOString();
+        const nextOrders = readDemoData().orders.map((candidate: { id: string }) =>
+          candidate.id === order.id
+            ? { ...candidate, curbside_arrived_at: curbsideArrivedAt }
+            : candidate,
+        );
+        writeDemo("orders", nextOrders);
+        setOrder({ ...order, curbside_arrived_at: curbsideArrivedAt });
+      } else {
+        const { error: arrivalError } = await supabase.rpc("customer_curbside_arrived", {
+          p_tracking_token: tracking_token,
+        });
+        if (arrivalError) throw arrivalError;
+        setOrder({ ...order, curbside_arrived_at: new Date().toISOString() });
+      }
+      setArrivalMessage("تم إبلاغ الموظف بوصولك. اضغط مرة واحدة فقط وانتظر في سيارتك.");
+    } catch (cause) {
+      setArrivalMessage(cause instanceof Error ? cause.message : "تعذر إرسال تنبيه الوصول");
+    } finally {
+      setArrivalBusy(false);
+    }
+  };
   return (
     <main dir="rtl" className="min-h-screen bg-gray-50 p-4">
       <div className="mx-auto max-w-lg space-y-5 pt-8">
@@ -141,6 +183,41 @@ function TrackingPage() {
             <strong>{formatCurrency(order.total_amount, order.currency || "SAR")}</strong>
           </div>
         </section>
+        {canAnnounceArrival && (
+          <section className="rounded-2xl border bg-white p-5">
+            <h2 className="flex items-center gap-2 font-bold">
+              <CarFront size={20} /> الاستلام من السيارة
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">اضغط عند وصولك فعليًا إلى المطعم.</p>
+            <button
+              type="button"
+              disabled={arrivalBusy || Boolean(order.curbside_arrived_at)}
+              onClick={announceArrival}
+              className="mt-3 w-full rounded-xl bg-blue-600 py-3 font-bold text-white disabled:bg-gray-300"
+            >
+              {order.curbside_arrived_at
+                ? "تم إرسال تنبيه الوصول"
+                : arrivalBusy
+                  ? "جارٍ الإبلاغ…"
+                  : "وصلت"}
+            </button>
+            {(arrivalMessage || order.curbside_acknowledged_at) && (
+              <p role="status" className="mt-3 rounded-xl bg-blue-50 p-3 text-sm text-blue-800">
+                {order.curbside_acknowledged_at ? "أكد الموظف استلام تنبيهك." : arrivalMessage}
+              </p>
+            )}
+          </section>
+        )}
+        {order.status === "completed" && order.google_review_url && (
+          <a
+            href={order.google_review_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-3 font-bold text-white"
+          >
+            قيّم تجربتك على Google <ExternalLink size={18} />
+          </a>
+        )}
         <Link
           to="/s/$store_slug"
           params={{ store_slug: order.store_slug || "demo" }}
@@ -148,11 +225,30 @@ function TrackingPage() {
         >
           العودة إلى قائمة المطعم
         </Link>
-        <button onClick={async () => {
-          const { data, error: saveError } = await supabase.rpc("save_usual_order", { p_store_id: order.store_id, p_tracking_token: tracking_token, p_label: "طلبي المعتاد" });
-          if (saveError) setError(saveError.message); else setUsualToken(data);
-        }} className="w-full rounded-2xl border bg-white py-3 text-center font-bold text-purple-700">حفظ كطلبي المعتاد</button>
-        {usualToken && <Link to="/s/$store_slug" params={{ store_slug: order.store_slug || "demo" }} search={{ usual: usualToken } as any} className="block rounded-2xl bg-purple-50 py-3 text-center font-bold text-purple-700">فتح طلبي المعتاد</Link>}
+        <button
+          onClick={async () => {
+            const { data, error: saveError } = await supabase.rpc("save_usual_order", {
+              p_store_id: order.store_id,
+              p_tracking_token: tracking_token,
+              p_label: "طلبي المعتاد",
+            });
+            if (saveError) setError(saveError.message);
+            else setUsualToken(data);
+          }}
+          className="w-full rounded-2xl border bg-white py-3 text-center font-bold text-purple-700"
+        >
+          حفظ كطلبي المعتاد
+        </button>
+        {usualToken && (
+          <Link
+            to="/s/$store_slug"
+            params={{ store_slug: order.store_slug || "demo" }}
+            search={{ usual: usualToken } as any}
+            className="block rounded-2xl bg-purple-50 py-3 text-center font-bold text-purple-700"
+          >
+            فتح طلبي المعتاد
+          </Link>
+        )}
         <Link
           to="/s/$store_slug"
           params={{ store_slug: order.store_slug || "demo" }}

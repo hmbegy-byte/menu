@@ -1,14 +1,58 @@
-import { useState } from "react";
-import { useUnsavedForm } from '../../hooks/useUnsavedForm';
+import { useEffect, useState } from "react";
+import { useUnsavedForm } from "../../hooks/useUnsavedForm";
 import { Clock3, MapPin, Plus, Trash2, Truck } from "lucide-react";
+import { isMockMode, supabase } from "../../lib/supabase";
+import { isValidGoogleReviewUrl } from "../../lib/restaurantOperations.mjs";
 
-export default function DeliverySettings({ adminData }) {
-  const [settings, setSettings] = useState(adminData.settings || {});
-  const {markSaved}=useUnsavedForm(settings);
+type DeliveryZone = {
+  id: string;
+  name: string;
+  fee: number;
+  minOrder: number;
+  etaMinutes: number;
+  active: boolean;
+};
+type DeliveryConfiguration = {
+  deliveryZones?: DeliveryZone[];
+  deliveryEnabled?: boolean;
+  dineInEnabled?: boolean;
+  pickupEtaMinutes?: number;
+  curbsideEnabled?: boolean;
+  googleReviewEnabled?: boolean;
+  googleReviewUrl?: string;
+  orderBoardEnabled?: boolean;
+};
+export default function DeliverySettings({
+  adminData,
+}: {
+  adminData: {
+    store: { id: string };
+    settings?: DeliveryConfiguration;
+    saveStoreSection: (section: string, value: DeliveryConfiguration) => Promise<unknown>;
+  };
+}) {
+  const [settings, setSettings] = useState<DeliveryConfiguration>(adminData.settings || {});
+  const { markSaved } = useUnsavedForm(settings);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [boardToken, setBoardToken] = useState("");
+  useEffect(() => {
+    if (isMockMode) {
+      const key = `demo_order_board:${adminData.store.id}`;
+      const existing = localStorage.getItem(key) || crypto.randomUUID();
+      localStorage.setItem(key, existing);
+      setBoardToken(existing);
+      return;
+    }
+    void supabase
+      .from("order_display_boards")
+      .select("access_token")
+      .eq("store_id", adminData.store.id)
+      .maybeSingle()
+      .then(({ data }) => setBoardToken(data?.access_token || ""));
+  }, [adminData.store.id]);
   const zones = settings.deliveryZones || [];
-  const updateZone = (id, field, value) =>
+  const updateZone = <K extends keyof DeliveryZone>(id: string, field: K, value: DeliveryZone[K]) =>
     setSettings((current) => ({
       ...current,
       deliveryZones: (current.deliveryZones || []).map((zone) =>
@@ -19,7 +63,21 @@ export default function DeliverySettings({ adminData }) {
     setSaving(true);
     setMessage("");
     try {
+      if (settings.googleReviewEnabled && !isValidGoogleReviewUrl(settings.googleReviewUrl || ""))
+        throw new Error("أدخل رابط تقييم Google صالحًا يبدأ بـ https://");
       await adminData.saveStoreSection("settings", settings);
+      if (!isMockMode) {
+        const { data, error } = await supabase
+          .from("order_display_boards")
+          .upsert(
+            { store_id: adminData.store.id, is_active: settings.orderBoardEnabled === true },
+            { onConflict: "store_id" },
+          )
+          .select("access_token")
+          .single();
+        if (error) throw error;
+        setBoardToken(data.access_token);
+      }
       markSaved();
       setMessage("تم حفظ إعدادات التوصيل.");
     } catch (error) {
@@ -63,6 +121,72 @@ export default function DeliverySettings({ adminData }) {
             className="mt-1 w-full rounded-xl border p-3"
           />
         </label>
+      </section>
+      <section className="space-y-4 rounded-2xl border bg-white p-5">
+        <div>
+          <h3 className="font-bold">خيارات الاستلام وما بعد الطلب</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            كل ميزة اختيارية لهذا المطعم ولا تحتاج رسائل أو خدمات مدفوعة.
+          </p>
+        </div>
+        <label className="flex items-center justify-between rounded-xl bg-gray-50 p-4 font-bold">
+          الاستلام من السيارة
+          <input
+            type="checkbox"
+            checked={settings.curbsideEnabled === true}
+            onChange={(event) =>
+              setSettings({ ...settings, curbsideEnabled: event.target.checked })
+            }
+          />
+        </label>
+        <label className="flex items-center justify-between rounded-xl bg-gray-50 p-4 font-bold">
+          شاشة أرقام الطلبات العامة
+          <input
+            type="checkbox"
+            checked={settings.orderBoardEnabled === true}
+            onChange={(event) =>
+              setSettings({ ...settings, orderBoardEnabled: event.target.checked })
+            }
+          />
+        </label>
+        {settings.orderBoardEnabled && boardToken && (
+          <a
+            className="block break-all rounded-xl border p-3 text-sm font-bold text-blue-700"
+            href={`/display/${boardToken}`}
+            target="_blank"
+            rel="noreferrer"
+          >
+            فتح شاشة أرقام الطلبات
+          </a>
+        )}
+        <label className="flex items-center justify-between rounded-xl bg-gray-50 p-4 font-bold">
+          إظهار رابط تقييم Google بعد التسليم
+          <input
+            type="checkbox"
+            checked={settings.googleReviewEnabled === true}
+            onChange={(event) =>
+              setSettings({ ...settings, googleReviewEnabled: event.target.checked })
+            }
+          />
+        </label>
+        {settings.googleReviewEnabled && (
+          <label className="block text-sm font-bold">
+            رابط صفحة التقييم للفرع
+            <input
+              dir="ltr"
+              type="url"
+              placeholder="https://g.page/.../review"
+              value={settings.googleReviewUrl || ""}
+              onChange={(event) =>
+                setSettings({ ...settings, googleReviewUrl: event.target.value.trim() })
+              }
+              className="mt-1 w-full rounded-xl border p-3 text-left"
+            />
+            <span className="mt-1 block font-normal text-gray-500">
+              الزر يفتح Google فقط؛ الضغط لا يعني أن العميل كتب تقييمًا.
+            </span>
+          </label>
+        )}
       </section>
       <section className="space-y-3">
         <div className="flex items-center justify-between">

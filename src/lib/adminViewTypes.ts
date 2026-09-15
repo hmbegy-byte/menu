@@ -1,0 +1,62 @@
+import type { StoreProfile } from "./storeProfileTypes";
+import type { CatalogCategory, CatalogProduct } from "./catalogTypes";
+import type { KitchenOrder } from "./orderTypes";
+export type AdminViewData = {
+  store: StoreProfile & {
+    currency: string;
+    is_active: boolean;
+    custom_domain?: string;
+    white_label?: { hidePlatformBrand?: boolean; supportEmail?: string; supportPhone?: string };
+  };
+  organization: { id: string };
+  products: CatalogProduct[];
+  categories: CatalogCategory[];
+  orders: Array<KitchenOrder & { payment_method?: string }>;
+  branches: Array<StoreProfile & { branch_name?: string; is_active: boolean }>;
+  team: Array<{
+    id: string;
+    email: string;
+    user_id: string;
+    role: string;
+    store_id: string;
+    status: string;
+  }>;
+  offers: unknown[];
+  addons: unknown[];
+  banners: unknown[];
+  settings: {
+    acceptingOrders?: boolean;
+    taxPercent?: number;
+    minOrderValue?: number;
+    maxOrdersPer15Minutes?: number;
+    pausedUntil?: string;
+    pauseReason?: string;
+    whatsappMessageTemplate?: string;
+    curbsideEnabled?: boolean;
+    googleReviewEnabled?: boolean;
+    googleReviewUrl?: string;
+    orderBoardEnabled?: boolean;
+    expensesEnabled?: boolean;
+    inventoryEnabled?: boolean;
+    profitabilityEnabled?: boolean;
+    defaultPaymentFee?: number;
+    defaultDeliveryFulfillmentCost?: number;
+    defaultCommissionPercent?: number;
+  };
+  appearance: { primaryColor?: string; theme?: string };
+  payment: { cashOnDelivery?: boolean; bankTransfer?: boolean };
+  plan: { limits: { branches: number } };
+  features: string[];
+  saveStoreSection: (section: string, value: object) => Promise<unknown>;
+  updateStore: (value: object) => Promise<unknown>;
+  saveBranch: (value: object) => Promise<unknown>;
+  deleteBranch: (id: string) => Promise<unknown>;
+  inviteTeamMember: (value: {
+    email: string;
+    role: string;
+    store_id: string;
+  }) => Promise<{ token: string }>;
+  removeTeamInvitation: (id: string) => Promise<unknown>;
+  importProducts: (value: Array<Record<string, unknown>>) => Promise<number>;
+  reload: () => Promise<unknown>;
+};

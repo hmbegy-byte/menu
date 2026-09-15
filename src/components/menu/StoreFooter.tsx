@@ -1,8 +1,9 @@
 import React from "react";
 import { Link } from "@tanstack/react-router";
 import { Clock, MapPin, Instagram, Facebook, Link as LinkIcon, MessageCircle } from "lucide-react";
+import type { StoreProfile } from "../../lib/storeProfileTypes";
 
-export function StoreFooter({ store }) {
+export function StoreFooter({ store }: { store: StoreProfile | null }) {
   if (!store) return null;
 
   const { social_links, working_hours } = store;
@@ -13,7 +14,12 @@ export function StoreFooter({ store }) {
 
   return (
     <footer className="mt-8 mb-8 mx-4 bg-surface rounded-3xl p-6 space-y-6">
-      <a href={`/s/${encodeURIComponent(store.slug)}/loyalty`} className="block rounded-2xl bg-primary p-4 text-center font-bold text-primary-foreground">برنامج الولاء — انضم أو اعرض بطاقتك</a>
+      <a
+        href={`/s/${encodeURIComponent(store.slug)}/loyalty`}
+        className="block rounded-2xl bg-primary p-4 text-center font-bold text-primary-foreground"
+      >
+        برنامج الولاء — انضم أو اعرض بطاقتك
+      </a>
       {hasHours && (
         <div>
           <h3 className="font-bold text-base flex items-center gap-2 mb-3">

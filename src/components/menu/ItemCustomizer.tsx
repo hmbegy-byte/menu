@@ -65,7 +65,9 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
           ...prev,
           [group.id]: current.includes(optionId)
             ? current.filter((id) => id !== optionId)
-            : current.length >= maximum ? current : [...current, optionId],
+            : current.length >= maximum
+              ? current
+              : [...current, optionId],
         };
       }
       return { ...prev, [group.id]: [optionId] };
@@ -127,44 +129,48 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
           </p>
           <h3 className="mt-1 text-lg font-extrabold">{group.title}</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">{group.subtitle}</p>
-          <p className="mt-1 text-xs text-muted-foreground">اختر من {minimum} إلى {maximum}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            اختر من {minimum} إلى {maximum}
+          </p>
 
           <div className="mt-4 space-y-2">
-            {group.options.filter((opt) => opt.isAvailable !== false).map((opt) => {
-              const isOn = (selected[group.id] ?? []).includes(opt.id);
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => toggle(opt.id)}
-                  className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 text-right transition-all duration-200 ${
-                    isOn
-                      ? "border-primary bg-primary/12 shadow-glow"
-                      : "border-border bg-surface hover:bg-surface-strong"
-                  }`}
-                >
-                  <span
-                    className={`grid h-6 w-6 shrink-0 place-items-center border-2 transition-colors ${
-                      group.multiple ? "rounded-md" : "rounded-full"
-                    } ${isOn ? "gradient-primary border-transparent" : "border-input"}`}
-                  >
-                    {isOn && (
-                      <Check className="animate-pop-in h-3.5 w-3.5 text-primary-foreground" />
-                    )}
-                  </span>
-                  <span className="min-w-0 truncate text-sm font-bold">{opt.name}</span>
-                  <span
-                    className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-extrabold ${
-                      opt.price === 0
-                        ? "bg-muted text-muted-foreground"
-                        : "bg-accent/20 text-accent"
+            {group.options
+              .filter((opt) => opt.isAvailable !== false)
+              .map((opt) => {
+                const isOn = (selected[group.id] ?? []).includes(opt.id);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => toggle(opt.id)}
+                    className={`grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border p-3 text-right transition-all duration-200 ${
+                      isOn
+                        ? "border-primary bg-primary/12 shadow-glow"
+                        : "border-border bg-surface hover:bg-surface-strong"
                     }`}
                   >
-                    {opt.price === 0 ? "مجانًا" : `+ ${formatCurrency(opt.price, currency)}`}
-                  </span>
-                </button>
-              );
-            })}
+                    <span
+                      className={`grid h-6 w-6 shrink-0 place-items-center border-2 transition-colors ${
+                        group.multiple ? "rounded-md" : "rounded-full"
+                      } ${isOn ? "gradient-primary border-transparent" : "border-input"}`}
+                    >
+                      {isOn && (
+                        <Check className="animate-pop-in h-3.5 w-3.5 text-primary-foreground" />
+                      )}
+                    </span>
+                    <span className="min-w-0 truncate text-sm font-bold">{opt.name}</span>
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-extrabold ${
+                        opt.price === 0
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-accent/20 text-accent"
+                      }`}
+                    >
+                      {opt.price === 0 ? "مجانًا" : `+ ${formatCurrency(opt.price, currency)}`}
+                    </span>
+                  </button>
+                );
+              })}
           </div>
         </div>
 

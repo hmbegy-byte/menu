@@ -14,6 +14,40 @@ import {
 import { formatCurrency } from "../../lib/currency";
 import { isMockMode, supabase } from "../../lib/supabase";
 import { readDemoData, writeDemo } from "../../lib/storeDefaults";
+import { parseOrderReceipt } from "../../lib/orderConfirmation.mjs";
+
+type DeliveryZone = {
+  id: string;
+  name: string;
+  active?: boolean;
+  fee?: number;
+  etaMinutes?: number;
+  minOrder?: number;
+};
+type CheckoutSettings = {
+  taxPercent?: number;
+  deliveryZones?: DeliveryZone[];
+  pickupEtaMinutes?: number;
+  minOrderValue?: number;
+  dineInEnabled?: boolean;
+  deliveryEnabled?: boolean;
+  curbsideEnabled?: boolean;
+};
+type CheckoutPayment = {
+  cashOnDelivery?: boolean;
+  bankTransfer?: boolean;
+  currency?: string;
+  bankAccountDetails?: string;
+};
+type Confirmation = {
+  id: string;
+  order_number: number;
+  total_amount: number;
+  tracking_token?: string;
+  customer_name: string;
+  customer_phone: string;
+  order_items: Array<{ quantity: number; product_name: string }>;
+};
 
 export type CartLine = {
   key: string;
@@ -33,8 +67,8 @@ type CartSheetProps = {
   onChangeQuantity?: (key: string, quantity: number) => void;
   onSubmitted?: (order: any) => void;
   store?: any;
-  settings?: Record<string, any>;
-  payment?: Record<string, any>;
+  settings?: CheckoutSettings;
+  payment?: CheckoutPayment;
 };
 
 export function CartSheet({
@@ -51,6 +85,8 @@ export function CartSheet({
     customerName: "",
     customerPhone: "",
     orderType: "pickup",
+    pickupMethod: "counter",
+    carDescription: "",
     deliveryAddress: "",
     deliveryZoneId: "",
     tableNumber: "",
@@ -62,7 +98,7 @@ export function CartSheet({
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [confirmed, setConfirmed] = useState<any>(null);
+  const [confirmed, setConfirmed] = useState<Confirmation | null>(null);
   const [locationStatus, setLocationStatus] = useState("");
   const [checkoutAttemptId] = useState(() => crypto.randomUUID());
   const currency = payment.currency || store?.currency || "SAR";
@@ -76,7 +112,10 @@ export function CartSheet({
       ? Number(selectedZone?.etaMinutes || 40)
       : Number(settings.pickupEtaMinutes || 20);
   const total = subtotal + tax + deliveryFee;
-  const minimum = Math.max(Number(settings.minOrderValue || 0), form.orderType === 'delivery' ? Number(selectedZone?.minOrder || 0) : 0);
+  const minimum = Math.max(
+    Number(settings.minOrderValue || 0),
+    form.orderType === "delivery" ? Number(selectedZone?.minOrder || 0) : 0,
+  );
   const canCash = payment.cashOnDelivery !== false;
   const canBank = Boolean(payment.bankTransfer);
 
@@ -135,6 +174,12 @@ export function CartSheet({
       );
     if (form.orderType === "dine_in" && !form.tableNumber.trim())
       return setError("أدخل رقم الطاولة.");
+    if (
+      form.orderType === "pickup" &&
+      form.pickupMethod === "curbside" &&
+      !form.carDescription.trim()
+    )
+      return setError("أدخل وصف السيارة أو رقم اللوحة ليستطيع الموظف العثور عليك.");
     if (subtotal < Number(settings.minOrderValue || 0))
       return setError(
         `الحد الأدنى للطلب ${formatCurrency(Number(settings.minOrderValue), currency)}.`,
@@ -152,9 +197,9 @@ export function CartSheet({
       let savedOrder;
       if (!store?.id) throw new Error("تعذر تحديد المطعم لهذا الطلب");
       if (isMockMode) {
-        const existingOrder = readDemoData().orders.find(
-          (order) => order.idempotency_key === checkoutAttemptId,
-        );
+        const existingOrder = (
+          readDemoData().orders as Array<Confirmation & { idempotency_key?: string }>
+        ).find((order) => order.idempotency_key === checkoutAttemptId);
         if (existingOrder) {
           setConfirmed(existingOrder);
           onSubmitted?.(existingOrder);
@@ -167,6 +212,11 @@ export function CartSheet({
           customer_name: form.customerName.trim(),
           customer_phone: form.customerPhone.trim(),
           order_type: form.orderType,
+          pickup_method: form.orderType === "pickup" ? form.pickupMethod : "counter",
+          car_description:
+            form.orderType === "pickup" && form.pickupMethod === "curbside"
+              ? form.carDescription.trim()
+              : null,
           delivery_address: form.orderType === "delivery" ? form.deliveryAddress.trim() : null,
           delivery_zone: selectedZone?.name || null,
           delivery_fee: deliveryFee,
@@ -189,7 +239,7 @@ export function CartSheet({
         writeDemo("orders", [savedOrder, ...readDemoData().orders]);
       } else {
         const attribution = store?.attribution || {};
-        const { data, error: orderError } = await supabase.rpc("create_order_v4", {
+        const { data, error: orderError } = await supabase.rpc("create_order_v5", {
           p_store_id: store.id,
           p_customer_name: form.customerName.trim(),
           p_customer_phone: form.customerPhone.trim(),
@@ -205,22 +255,28 @@ export function CartSheet({
           p_delivery_longitude: form.longitude,
           p_campaign_slug: attribution.campaign || null,
           p_attribution_source: attribution.source || null,
+          p_pickup_method: form.orderType === "pickup" ? form.pickupMethod : "counter",
+          p_car_description:
+            form.orderType === "pickup" && form.pickupMethod === "curbside"
+              ? form.carDescription.trim()
+              : null,
         });
         if (orderError) {
           // PostgREST errors are plain objects, not Error instances.
-          const message = orderError.code === 'P0001' && /^[\u0600-\u06ff]/.test(orderError.message || '')
-            ? orderError.message
-            : `تعذر إرسال الطلب. رمز الخطأ: ${/^[A-Z0-9]+$/.test(orderError.code || '') ? orderError.code : 'NETWORK'}`;
+          const message =
+            orderError.code === "P0001" && /^[\u0600-\u06ff]/.test(orderError.message || "")
+              ? orderError.message
+              : `تعذر إرسال الطلب. رمز الخطأ: ${/^[A-Z0-9]+$/.test(orderError.code || "") ? orderError.code : "NETWORK"}`;
           throw new Error(message);
         }
-        savedOrder = Array.isArray(data) ? data[0] : data;
+        savedOrder = parseOrderReceipt(data);
       }
       const confirmation = {
         ...savedOrder,
         order_items: orderItems,
         customer_name: form.customerName.trim(),
         customer_phone: form.customerPhone.trim(),
-        total_amount: savedOrder.total_amount ?? total,
+        total_amount: savedOrder.total_amount,
       };
       setConfirmed(confirmation);
       onSubmitted?.(confirmation);
@@ -417,8 +473,11 @@ export function CartSheet({
                       <option value="">اختر المنطقة</option>
                       {deliveryZones.map((zone) => (
                         <option key={zone.id} value={zone.id}>
-                          {zone.name} — {formatCurrency(zone.fee, currency)} — {zone.etaMinutes}{" "}
-                          دقيقة
+                          {zone.name} —{" "}
+                          {zone.fee == null
+                            ? "تُحسب عند التأكيد"
+                            : formatCurrency(zone.fee, currency)}{" "}
+                          — {zone.etaMinutes} دقيقة
                         </option>
                       ))}
                     </select>
@@ -445,6 +504,47 @@ export function CartSheet({
                     )}
                   </label>
                 </div>
+              )}
+              {form.orderType === "pickup" && settings.curbsideEnabled && (
+                <fieldset className="space-y-3 rounded-2xl border bg-surface p-4">
+                  <legend className="px-2 text-sm font-bold">طريقة الاستلام</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <label className="rounded-xl border bg-background p-3">
+                      <input
+                        type="radio"
+                        name="pickupMethod"
+                        value="counter"
+                        checked={form.pickupMethod === "counter"}
+                        onChange={(event) => setForm({ ...form, pickupMethod: event.target.value })}
+                      />{" "}
+                      من الكاونتر
+                    </label>
+                    <label className="rounded-xl border bg-background p-3">
+                      <input
+                        type="radio"
+                        name="pickupMethod"
+                        value="curbside"
+                        checked={form.pickupMethod === "curbside"}
+                        onChange={(event) => setForm({ ...form, pickupMethod: event.target.value })}
+                      />{" "}
+                      من السيارة
+                    </label>
+                  </div>
+                  {form.pickupMethod === "curbside" && (
+                    <label className="block text-sm font-bold">
+                      وصف السيارة أو رقم اللوحة
+                      <input
+                        required
+                        value={form.carDescription}
+                        onChange={(event) =>
+                          setForm({ ...form, carDescription: event.target.value })
+                        }
+                        placeholder="مثال: تويوتا بيضاء — أ ب ج 1234"
+                        className="mt-1 w-full rounded-xl border bg-background p-3 font-normal"
+                      />
+                    </label>
+                  )}
+                </fieldset>
               )}
               {form.orderType === "dine_in" && (
                 <label className="block text-sm font-bold">
@@ -509,8 +609,19 @@ export function CartSheet({
               )}
             </div>
             <div className="border-t px-4 py-4">
-              {minimum > 0 && <p role="status" className="mb-3 text-sm">الحد الأدنى: {formatCurrency(minimum,currency)}{subtotal < minimum ? ` — أضف ${formatCurrency(minimum-subtotal,currency)} لإكمال الطلب` : ' — مستوفى'}</p>}
-              {form.orderType==='delivery' && deliveryZones.length>0 && !selectedZone && <p className="mb-3 text-sm text-destructive">اختر منطقة التوصيل لاحتساب الرسوم والإجمالي النهائي.</p>}
+              {minimum > 0 && (
+                <p role="status" className="mb-3 text-sm">
+                  الحد الأدنى: {formatCurrency(minimum, currency)}
+                  {subtotal < minimum
+                    ? ` — أضف ${formatCurrency(minimum - subtotal, currency)} لإكمال الطلب`
+                    : " — مستوفى"}
+                </p>
+              )}
+              {form.orderType === "delivery" && deliveryZones.length > 0 && !selectedZone && (
+                <p className="mb-3 text-sm text-destructive">
+                  اختر منطقة التوصيل لاحتساب الرسوم والإجمالي النهائي.
+                </p>
+              )}
               <div className="mb-3 space-y-1 text-sm">
                 <div className="flex justify-between">
                   <span>المجموع</span>
@@ -534,7 +645,12 @@ export function CartSheet({
                 </div>
               </div>
               <button
-                disabled={submitting || !lines.length || subtotal < minimum || (form.orderType==='delivery' && deliveryZones.length>0 && !selectedZone)}
+                disabled={
+                  submitting ||
+                  !lines.length ||
+                  subtotal < minimum ||
+                  (form.orderType === "delivery" && deliveryZones.length > 0 && !selectedZone)
+                }
                 className="gradient-primary w-full rounded-2xl py-3.5 font-extrabold text-primary-foreground disabled:opacity-50"
               >
                 {submitting ? "جارٍ إرسال الطلب…" : "تأكيد الطلب"}

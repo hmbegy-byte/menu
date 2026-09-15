@@ -1,9 +1,17 @@
 import React, { useState } from "react";
-import { useUnsavedForm } from '../../hooks/useUnsavedForm';
+import { useUnsavedForm } from "../../hooks/useUnsavedForm";
 import { Store, Phone, Upload, Image as ImageIcon, Landmark, ShieldCheck } from "lucide-react";
 import { uploadStoreImage } from "../../lib/uploadImage";
+import type { StoreProfile } from "../../lib/storeProfileTypes";
 
-export default function RestaurantProfile({ adminData }) {
+export default function RestaurantProfile({
+  adminData,
+}: {
+  adminData: {
+    store: StoreProfile;
+    updateStore: (value: Partial<StoreProfile>) => Promise<unknown>;
+  };
+}) {
   const { store, updateStore } = adminData;
 
   const [formData, setFormData] = useState({
@@ -26,17 +34,19 @@ export default function RestaurantProfile({ adminData }) {
     },
   });
 
-  const [logoFile, setLogoFile] = useState(null);
-  const [coverFile, setCoverFile] = useState(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [coverFile, setCoverFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const {markSaved}=useUnsavedForm({formData,logo:logoFile?.name,cover:coverFile?.name});
+  const { markSaved } = useUnsavedForm({ formData, logo: logoFile?.name, cover: coverFile?.name });
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>,
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSocialChange = (e) => {
+  const handleSocialChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -44,24 +54,26 @@ export default function RestaurantProfile({ adminData }) {
     }));
   };
 
-  const handleLegalChange = (e) => {
+  const handleLegalChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, legal: { ...prev.legal, [name]: value } }));
   };
 
-  const handleLogoChange = (e) => {
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setLogoFile(e.target.files[0]);
     }
   };
 
-  const handleCoverChange = (e) => {
+  const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setCoverFile(e.target.files[0]);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -396,6 +408,14 @@ function LegalInput({
   type = "text",
   placeholder = "",
   required = false,
+}: {
+  label: string;
+  name: string;
+  value: string | undefined;
+  onChange: React.ChangeEventHandler<HTMLInputElement>;
+  type?: string;
+  placeholder?: string;
+  required?: boolean;
 }) {
   return (
     <div>

@@ -1,6 +1,13 @@
 import React from "react";
+import type { KitchenOrder, KitchenStore } from "../lib/orderTypes";
 
-export default function PrintReceipt({ order, store }) {
+export default function PrintReceipt({
+  order,
+  store,
+}: {
+  order: KitchenOrder | null;
+  store: KitchenStore | null;
+}) {
   if (!order || !store) return null;
 
   const dateFormatted = new Date(order.created_at).toLocaleDateString("ar-EG");
@@ -51,9 +58,9 @@ export default function PrintReceipt({ order, store }) {
                   {item.selected_options &&
                     item.selected_options.map((opt, oIdx) => (
                       <tr key={`opt-${oIdx}`} className="text-gray-600 text-xs">
-                        <td colSpan="3" className="pb-1 pl-2">
+                        <td colSpan={3} className="pb-1 pl-2">
                           - {opt.choice ? `${opt.name}: ${opt.choice.label}` : opt.name}
-                          {opt.choice?.price > 0 ? ` (+${opt.choice.price})` : ""}
+                          {(opt.choice?.price ?? 0) > 0 ? ` (+${opt.choice?.price})` : ""}
                         </td>
                       </tr>
                     ))}

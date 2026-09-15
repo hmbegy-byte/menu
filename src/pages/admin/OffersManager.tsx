@@ -2,36 +2,62 @@ import React, { useState } from "react";
 import { Plus, Edit2, Trash2, Image as ImageIcon, Upload, X, Layers } from "lucide-react";
 import { uploadStoreImage } from "../../lib/uploadImage";
 
-export default function OffersManager({ adminData }) {
+type Offer = {
+  id: string;
+  title: string;
+  discount_percentage: number;
+  active: boolean;
+  image_url: string;
+  product_id?: string | null;
+};
+type Banner = {
+  id: string;
+  image_url: string;
+  title: string;
+  subtitle: string;
+  product_id?: string | null;
+};
+export default function OffersManager({
+  adminData,
+}: {
+  adminData: {
+    offers: Offer[];
+    banners: Banner[];
+    products: Array<{ id: string; name: string }>;
+    store: { id: string };
+    saveEntity: (table: string, payload: Record<string, unknown>) => Promise<unknown>;
+    deleteEntity: (table: string, id: string) => Promise<unknown>;
+  };
+}) {
   const { offers, banners, saveEntity, deleteEntity, store } = adminData;
 
   // ─── Offers State ───
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingOffer, setEditingOffer] = useState(null);
-  const [formData, setFormData] = useState({
+  const [editingOffer, setEditingOffer] = useState<Offer | null>(null);
+  const [formData, setFormData] = useState<Omit<Offer, "id">>({
     title: "",
     discount_percentage: 0,
     active: true,
     image_url: "",
   });
-  const [imageFile, setImageFile] = useState(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // ─── Banner State ───
   const [isBannerModalOpen, setIsBannerModalOpen] = useState(false);
-  const [editingBanner, setEditingBanner] = useState(null);
-  const [bannerForm, setBannerForm] = useState({
+  const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [bannerForm, setBannerForm] = useState<Omit<Banner, "id">>({
     image_url: "",
     title: "",
     subtitle: "",
   });
-  const [bannerFile, setBannerFile] = useState(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
   const [isBannerSaving, setIsBannerSaving] = useState(false);
 
   // ═══════════════════════════════════
   // OFFER OPERATIONS
   // ═══════════════════════════════════
-  const handleOpenModal = (offer = null) => {
+  const handleOpenModal = (offer: Offer | null = null) => {
     setImageFile(null);
     if (offer) {
       setEditingOffer(offer);
@@ -43,13 +69,13 @@ export default function OffersManager({ adminData }) {
     setIsModalOpen(true);
   };
 
-  const handleImageFileChange = (e) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0]);
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -60,7 +86,12 @@ export default function OffersManager({ adminData }) {
       await saveEntity(
         "offers",
         editingOffer
-          ? { ...formData, product_id: formData.product_id || null, image_url: finalImageUrl, id: editingOffer.id }
+          ? {
+              ...formData,
+              product_id: formData.product_id || null,
+              image_url: finalImageUrl,
+              id: editingOffer.id,
+            }
           : { ...formData, product_id: formData.product_id || null, image_url: finalImageUrl },
       );
       setIsModalOpen(false);
@@ -71,7 +102,7 @@ export default function OffersManager({ adminData }) {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (confirm("هل أنت متأكد من حذف هذا العرض؟")) {
       try {
         await deleteEntity("offers", id);
@@ -84,7 +115,7 @@ export default function OffersManager({ adminData }) {
   // ═══════════════════════════════════
   // BANNER OPERATIONS
   // ═══════════════════════════════════
-  const handleOpenBannerModal = (banner = null) => {
+  const handleOpenBannerModal = (banner: Banner | null = null) => {
     setBannerFile(null);
     if (banner) {
       setEditingBanner(banner);
@@ -101,13 +132,13 @@ export default function OffersManager({ adminData }) {
     setIsBannerModalOpen(true);
   };
 
-  const handleBannerFileChange = (e) => {
+  const handleBannerFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setBannerFile(e.target.files[0]);
     }
   };
 
-  const handleBannerSubmit = async (e) => {
+  const handleBannerSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsBannerSaving(true);
     try {
@@ -118,7 +149,13 @@ export default function OffersManager({ adminData }) {
       await saveEntity(
         "banners",
         editingBanner
-          ? { ...bannerForm, product_id: bannerForm.product_id || null, image_url: finalImageUrl, id: editingBanner.id, active: true }
+          ? {
+              ...bannerForm,
+              product_id: bannerForm.product_id || null,
+              image_url: finalImageUrl,
+              id: editingBanner.id,
+              active: true,
+            }
           : {
               ...bannerForm,
               product_id: bannerForm.product_id || null,
@@ -135,7 +172,7 @@ export default function OffersManager({ adminData }) {
     }
   };
 
-  const handleDeleteBanner = async (id) => {
+  const handleDeleteBanner = async (id: string) => {
     if (confirm("هل أنت متأكد من حذف هذه اللافتة؟")) {
       try {
         await deleteEntity("banners", id);
@@ -317,8 +354,24 @@ export default function OffersManager({ adminData }) {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <label className="block">الأصناف المشمولة<select value={formData.product_id || ''} onChange={e=>setFormData({...formData,product_id:e.target.value})} className="mt-1 w-full rounded-xl border bg-background p-3"><option value="">كل الأصناف</option>{adminData.products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-              <p className="text-sm">يُطبّق أعلى خصم متاح تلقائيًا على سعر الصنف دون خصم الإضافات.</p>
+              <label className="block">
+                الأصناف المشمولة
+                <select
+                  value={formData.product_id || ""}
+                  onChange={(e) => setFormData({ ...formData, product_id: e.target.value })}
+                  className="mt-1 w-full rounded-xl border bg-background p-3"
+                >
+                  <option value="">كل الأصناف</option>
+                  {adminData.products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-sm">
+                يُطبّق أعلى خصم متاح تلقائيًا على سعر الصنف دون خصم الإضافات.
+              </p>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">عنوان العرض</label>
                 <input
@@ -427,7 +480,21 @@ export default function OffersManager({ adminData }) {
             </div>
 
             <form onSubmit={handleBannerSubmit} className="p-6 space-y-4">
-              <label className="block">الصنف المرتبط بزر الطلب<select value={bannerForm.product_id || ''} onChange={e=>setBannerForm({...bannerForm,product_id:e.target.value})} className="mt-1 w-full rounded-xl border bg-background p-3"><option value="">تصفح الأصناف</option>{adminData.products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+              <label className="block">
+                الصنف المرتبط بزر الطلب
+                <select
+                  value={bannerForm.product_id || ""}
+                  onChange={(e) => setBannerForm({ ...bannerForm, product_id: e.target.value })}
+                  className="mt-1 w-full rounded-xl border bg-background p-3"
+                >
+                  <option value="">تصفح الأصناف</option>
+                  {adminData.products.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   عنوان اللافتة

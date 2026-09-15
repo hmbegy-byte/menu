@@ -11,10 +11,13 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PlatformRouteImport } from './routes/platform'
+import { Route as PlatformInfoRouteImport } from './routes/platform-info'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminStore_slugRouteImport } from './routes/admin.$store_slug'
+import { Route as ApiHealthRouteImport } from './routes/api.health'
 import { Route as ApiManifestRouteImport } from './routes/api.manifest'
+import { Route as DisplayAccess_tokenRouteImport } from './routes/display.$access_token'
 import { Route as KitchenIndexRouteImport } from './routes/kitchen.index'
 import { Route as KitchenStore_slugRouteImport } from './routes/kitchen.$store_slug'
 import { Route as LegalPrivacyRouteImport } from './routes/legal.privacy'
@@ -34,6 +37,11 @@ const PlatformRoute = PlatformRouteImport.update({
   path: '/platform',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlatformInfoRoute = PlatformInfoRouteImport.update({
+  id: '/platform-info',
+  path: '/platform-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -49,9 +57,19 @@ const AdminStore_slugRoute = AdminStore_slugRouteImport.update({
   path: '/admin/$store_slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiManifestRoute = ApiManifestRouteImport.update({
   id: '/api/manifest',
   path: '/api/manifest',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DisplayAccess_tokenRoute = DisplayAccess_tokenRouteImport.update({
+  id: '/display/$access_token',
+  path: '/display/$access_token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const KitchenIndexRoute = KitchenIndexRouteImport.update({
@@ -98,9 +116,12 @@ const SStore_slugScannerRoute = SStore_slugScannerRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/platform': typeof PlatformRoute
+  '/platform-info': typeof PlatformInfoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/display/$access_token': typeof DisplayAccess_tokenRoute
   '/kitchen/$store_slug': typeof KitchenStore_slugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -114,9 +135,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/platform': typeof PlatformRoute
+  '/platform-info': typeof PlatformInfoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/display/$access_token': typeof DisplayAccess_tokenRoute
   '/kitchen/$store_slug': typeof KitchenStore_slugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -131,9 +155,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/platform': typeof PlatformRoute
+  '/platform-info': typeof PlatformInfoRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/admin/$store_slug': typeof AdminStore_slugRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/manifest': typeof ApiManifestRoute
+  '/display/$access_token': typeof DisplayAccess_tokenRoute
   '/kitchen/$store_slug': typeof KitchenStore_slugRoute
   '/legal/privacy': typeof LegalPrivacyRoute
   '/legal/terms': typeof LegalTermsRoute
@@ -149,9 +176,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/platform'
+    | '/platform-info'
     | '/sitemap.xml'
     | '/admin/$store_slug'
+    | '/api/health'
     | '/api/manifest'
+    | '/display/$access_token'
     | '/kitchen/$store_slug'
     | '/legal/privacy'
     | '/legal/terms'
@@ -165,9 +195,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/platform'
+    | '/platform-info'
     | '/sitemap.xml'
     | '/admin/$store_slug'
+    | '/api/health'
     | '/api/manifest'
+    | '/display/$access_token'
     | '/kitchen/$store_slug'
     | '/legal/privacy'
     | '/legal/terms'
@@ -181,9 +214,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/platform'
+    | '/platform-info'
     | '/sitemap.xml'
     | '/admin/$store_slug'
+    | '/api/health'
     | '/api/manifest'
+    | '/display/$access_token'
     | '/kitchen/$store_slug'
     | '/legal/privacy'
     | '/legal/terms'
@@ -198,9 +234,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PlatformRoute: typeof PlatformRoute
+  PlatformInfoRoute: typeof PlatformInfoRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   AdminStore_slugRoute: typeof AdminStore_slugRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiManifestRoute: typeof ApiManifestRoute
+  DisplayAccess_tokenRoute: typeof DisplayAccess_tokenRoute
   KitchenStore_slugRoute: typeof KitchenStore_slugRoute
   LegalPrivacyRoute: typeof LegalPrivacyRoute
   LegalTermsRoute: typeof LegalTermsRoute
@@ -228,6 +267,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PlatformRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/platform-info': {
+      id: '/platform-info'
+      path: '/platform-info'
+      fullPath: '/platform-info'
+      preLoaderRoute: typeof PlatformInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -249,11 +295,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminStore_slugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/manifest': {
       id: '/api/manifest'
       path: '/api/manifest'
       fullPath: '/api/manifest'
       preLoaderRoute: typeof ApiManifestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/display/$access_token': {
+      id: '/display/$access_token'
+      path: '/display/$access_token'
+      fullPath: '/display/$access_token'
+      preLoaderRoute: typeof DisplayAccess_tokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/kitchen/': {
@@ -318,9 +378,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PlatformRoute: PlatformRoute,
+  PlatformInfoRoute: PlatformInfoRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   AdminStore_slugRoute: AdminStore_slugRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiManifestRoute: ApiManifestRoute,
+  DisplayAccess_tokenRoute: DisplayAccess_tokenRoute,
   KitchenStore_slugRoute: KitchenStore_slugRoute,
   LegalPrivacyRoute: LegalPrivacyRoute,
   LegalTermsRoute: LegalTermsRoute,

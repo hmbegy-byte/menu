@@ -1,6 +1,13 @@
 import { CheckCircle2, Circle, Rocket } from "lucide-react";
+import type { AdminViewData } from "../../lib/adminViewTypes";
 
-export default function OnboardingChecklist({ adminData, setActiveTab }) {
+export default function OnboardingChecklist({
+  adminData,
+  setActiveTab,
+}: {
+  adminData: AdminViewData;
+  setActiveTab: (tab: string) => void;
+}) {
   const { store, products, payment } = adminData;
   const steps = [
     {

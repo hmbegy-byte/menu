@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title">
+  <title id="title">سمك مشوي</title>
+  <rect width="800" height="800" rx="96" fill="#efe3cf"/>
+  <circle cx="400" cy="400" r="300" fill="#fbf8f1" stroke="#d6c5aa" stroke-width="22"/>
+  <path d="M205 405c105-132 286-153 400-7-111 146-298 143-400 7Z" fill="#b96c3c"/>
+  <path d="m218 405-120-92 20 102-20 92 120-102Z" fill="#db985c"/>
+  <circle cx="536" cy="370" r="13" fill="#26343a"/>
+  <g stroke="#f2c185" stroke-width="16" stroke-linecap="round">
+    <path d="m285 335 46 137"/><path d="m365 315 48 165"/><path d="m447 320 44 140"/>
+  </g>
+  <path d="M235 590c92 36 240 36 330 0" fill="none" stroke="#5f8b58" stroke-width="24" stroke-linecap="round"/>
+</svg>

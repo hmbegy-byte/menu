@@ -16,11 +16,40 @@ import { Textarea } from "../../components/ui/textarea";
 import { formatCurrency } from "../../lib/currency";
 import { isMockMode, supabase } from "../../lib/supabase";
 
-type Row = Record<string, any>;
+import type { AdminViewData } from "../../lib/adminViewTypes";
+type Profile = {
+  id: string;
+  name: string;
+  phone: string;
+  orders_count: number;
+  total_spent: number;
+  last_order_at: string;
+};
+type Consent = { id: string; customer_id: string; status: string };
+type Segment = {
+  id: string;
+  name: string;
+  kind: string;
+  criteria?: { max_orders?: number; min_orders?: number; min_spent?: number; days?: number };
+};
+type Campaign = {
+  id: string;
+  name: string;
+  segment_rule_id: string | null;
+  template: string;
+  status: string;
+};
+type Delivery = { id: string; customer_id: string; campaign_id: string; status: string };
+type LocalData = {
+  consents: Consent[];
+  rules: Segment[];
+  campaigns: Campaign[];
+  deliveries: Delivery[];
+};
 const key = (orgId: string) => `demo_retention:${orgId}`;
 const readLocal = (orgId: string) => {
   try {
-    return JSON.parse(localStorage.getItem(key(orgId)) || "{}") as Record<string, Row[]>;
+    return JSON.parse(localStorage.getItem(key(orgId)) || "{}") as Partial<LocalData>;
   } catch {
     return {};
   }
@@ -34,13 +63,13 @@ const labels: Record<string, string> = {
   custom: "شريحة مخصصة",
 };
 
-export default function RetentionManager({ adminData }: any) {
+export default function RetentionManager({ adminData }: { adminData: AdminViewData }) {
   const { organization, store, orders = [] } = adminData;
-  const [profiles, setProfiles] = useState<Row[]>([]);
-  const [consents, setConsents] = useState<Row[]>([]);
-  const [rules, setRules] = useState<Row[]>([]);
-  const [campaigns, setCampaigns] = useState<Row[]>([]);
-  const [deliveries, setDeliveries] = useState<Row[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [consents, setConsents] = useState<Consent[]>([]);
+  const [rules, setRules] = useState<Segment[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -53,24 +82,24 @@ export default function RetentionManager({ adminData }: any) {
   });
 
   const demoProfiles = useMemo(() => {
-    const map = new Map<string, Row>();
+    const map = new Map<string, Profile>();
     orders
-      .filter((order: Row) => order.status !== "cancelled")
-      .forEach((order: Row) => {
-        const phone = String(order.customer_phone || "").replace(/\s/g, "");
+      .filter((order) => order["status"] !== "cancelled")
+      .forEach((order) => {
+        const phone = String(order["customer_phone"] || "").replace(/\s/g, "");
         if (!phone) return;
         const current = map.get(phone) || {
           id: `demo-customer-${phone}`,
-          name: order.customer_name,
+          name: order["customer_name"],
           phone,
           orders_count: 0,
           total_spent: 0,
-          last_order_at: order.created_at,
+          last_order_at: order["created_at"],
         };
-        current.orders_count += 1;
-        current.total_spent += Number(order.total_amount || 0);
-        if (new Date(order.created_at) > new Date(current.last_order_at))
-          current.last_order_at = order.created_at;
+        current["orders_count"] += 1;
+        current["total_spent"] += Number(order["total_amount"] || 0);
+        if (new Date(order["created_at"]) > new Date(current["last_order_at"]))
+          current["last_order_at"] = order["created_at"];
         map.set(phone, current);
       });
     return [...map.values()];
@@ -81,10 +110,10 @@ export default function RetentionManager({ adminData }: any) {
     if (isMockMode) {
       const local = readLocal(organization.id);
       setProfiles(demoProfiles);
-      setConsents(local.consents || []);
-      setRules(local.rules || []);
-      setCampaigns(local.campaigns || []);
-      setDeliveries(local.deliveries || []);
+      setConsents(local["consents"] || []);
+      setRules(local["rules"] || []);
+      setCampaigns(local["campaigns"] || []);
+      setDeliveries(local["deliveries"] || []);
       return;
     }
     const [customerRows, consentRows, ruleRows, campaignRows] = await Promise.all([
@@ -127,7 +156,7 @@ export default function RetentionManager({ adminData }: any) {
   }, [demoProfiles, organization.id]);
   useEffect(() => void load(), [load]);
 
-  const saveLocal = (next: Record<string, Row[]>) =>
+  const saveLocal = (next: LocalData) =>
     localStorage.setItem(key(organization.id), JSON.stringify(next));
   const run = async (work: () => Promise<string | void>, fallback: string) => {
     setBusy(true);
@@ -183,7 +212,7 @@ export default function RetentionManager({ adminData }: any) {
   const removeRule = (id: string) =>
     void run(async () => {
       if (isMockMode) {
-        const next = rules.filter((rule) => rule.id !== id);
+        const next = rules.filter((rule) => rule["id"] !== id);
         setRules(next);
         saveLocal({ consents, rules: next, campaigns, deliveries });
       } else {
@@ -197,12 +226,12 @@ export default function RetentionManager({ adminData }: any) {
       }
     }, "تم حذف الشريحة");
 
-  const setConsent = (customer: Row, status: "opted_in" | "opted_out") =>
+  const setConsent = (customer: Profile, status: "opted_in" | "opted_out") =>
     void run(
       async () => {
         const payload = {
           organization_id: organization.id,
-          customer_id: customer.id,
+          customer_id: customer["id"],
           channel: "whatsapp",
           status,
           source: "admin_confirmed",
@@ -214,7 +243,7 @@ export default function RetentionManager({ adminData }: any) {
         };
         if (isMockMode) {
           const next = [
-            ...consents.filter((item) => item.customer_id !== customer.id),
+            ...consents.filter((item) => item["customer_id"] !== customer["id"]),
             { ...payload, id: crypto.randomUUID() },
           ];
           setConsents(next);
@@ -264,27 +293,29 @@ export default function RetentionManager({ adminData }: any) {
     }, "تم حفظ الحملة كمسودة آمنة");
   };
 
-  const matches = (customer: Row, rule?: Row) => {
+  const matches = (customer: Profile, rule?: Segment) => {
     if (!rule) return true;
-    const c = rule.criteria || {};
-    if (rule.kind === "new") return customer.orders_count <= (c.max_orders ?? 1);
-    if (rule.kind === "repeat") return customer.orders_count >= (c.min_orders ?? 2);
-    if (rule.kind === "high_value") return customer.total_spent >= (c.min_spent ?? 500);
-    if (rule.kind === "inactive")
-      return new Date(customer.last_order_at) < new Date(Date.now() - (c.days ?? 30) * 86400000);
+    const c = rule["criteria"] || {};
+    if (rule["kind"] === "new") return customer["orders_count"] <= (c.max_orders ?? 1);
+    if (rule["kind"] === "repeat") return customer["orders_count"] >= (c.min_orders ?? 2);
+    if (rule["kind"] === "high_value") return customer["total_spent"] >= (c.min_spent ?? 500);
+    if (rule["kind"] === "inactive")
+      return new Date(customer["last_order_at"]) < new Date(Date.now() - (c.days ?? 30) * 86400000);
     return (
-      customer.orders_count >= (c.min_orders ?? 0) && customer.total_spent >= (c.min_spent ?? 0)
+      customer["orders_count"] >= (c.min_orders ?? 0) &&
+      customer["total_spent"] >= (c.min_spent ?? 0)
     );
   };
-  const queueCampaign = (campaign: Row) =>
+  const queueCampaign = (campaign: Campaign) =>
     void run(async () => {
       if (isMockMode) {
-        const rule = rules.find((item) => item.id === campaign.segment_rule_id);
+        const rule = rules.find((item) => item["id"] === campaign["segment_rule_id"]);
         const eligible = profiles.filter(
           (customer) =>
             matches(customer, rule) &&
             consents.some(
-              (consent) => consent.customer_id === customer.id && consent.status === "opted_in",
+              (consent) =>
+                consent["customer_id"] === customer["id"] && consent["status"] === "opted_in",
             ),
         );
         const additions = eligible
@@ -292,13 +323,14 @@ export default function RetentionManager({ adminData }: any) {
             (customer) =>
               !deliveries.some(
                 (delivery) =>
-                  delivery.campaign_id === campaign.id && delivery.customer_id === customer.id,
+                  delivery["campaign_id"] === campaign["id"] &&
+                  delivery["customer_id"] === customer["id"],
               ),
           )
           .map((customer) => ({
             id: crypto.randomUUID(),
-            campaign_id: campaign.id,
-            customer_id: customer.id,
+            campaign_id: campaign["id"],
+            customer_id: customer["id"],
             status: "queued",
             created_at: new Date().toISOString(),
           }));
@@ -308,7 +340,7 @@ export default function RetentionManager({ adminData }: any) {
         return `تم تجهيز ${additions.length} رسالة دون إرسالها`;
       }
       const { data: count, error: queueError } = await supabase.rpc("queue_retention_campaign", {
-        p_campaign_id: campaign.id,
+        p_campaign_id: campaign["id"],
       });
       if (queueError) throw queueError;
       await load();
@@ -316,11 +348,11 @@ export default function RetentionManager({ adminData }: any) {
     }, "تم تجهيز الحملة");
 
   const optedIn = new Set(
-    consents.filter((item) => item.status === "opted_in").map((item) => item.customer_id),
+    consents.filter((item) => item["status"] === "opted_in").map((item) => item["customer_id"]),
   );
   const queuedCount = (campaignId: string) =>
     deliveries.filter(
-      (delivery) => delivery.campaign_id === campaignId && delivery.status === "queued",
+      (delivery) => delivery["campaign_id"] === campaignId && delivery["status"] === "queued",
     ).length;
 
   return (
@@ -346,7 +378,7 @@ export default function RetentionManager({ adminData }: any) {
         <Metric label="موافقون على واتساب" value={optedIn.size} />
         <Metric
           label="رسائل مجهزة"
-          value={deliveries.filter((item) => item.status === "queued").length}
+          value={deliveries.filter((item) => item["status"] === "queued").length}
         />
       </div>
 
@@ -403,15 +435,15 @@ export default function RetentionManager({ adminData }: any) {
                 <p className="p-4 text-sm text-gray-500">أنشئ شريحة لاستخدامها في الحملات.</p>
               )}
               {rules.map((rule) => (
-                <div key={rule.id} className="flex items-center justify-between p-3">
+                <div key={rule["id"]} className="flex items-center justify-between p-3">
                   <div>
-                    <strong>{rule.name}</strong>
+                    <strong>{rule["name"]}</strong>
                     <p className="text-xs text-gray-500">
-                      {labels[rule.kind]} ·{" "}
+                      {labels[rule["kind"]]} ·{" "}
                       {profiles.filter((customer) => matches(customer, rule)).length} عميل حاليًا
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => removeRule(rule.id)}>
+                  <Button variant="ghost" size="icon" onClick={() => removeRule(rule["id"])}>
                     <Trash2 size={17} className="text-red-600" />
                   </Button>
                 </div>
@@ -445,8 +477,8 @@ export default function RetentionManager({ adminData }: any) {
                 >
                   <option value="">كل الموافقين</option>
                   {rules.map((rule) => (
-                    <option key={rule.id} value={rule.id}>
-                      {rule.name}
+                    <option key={rule["id"]} value={rule["id"]}>
+                      {rule["name"]}
                     </option>
                   ))}
                 </select>
@@ -475,14 +507,14 @@ export default function RetentionManager({ adminData }: any) {
                 <p className="p-4 text-sm text-gray-500">لا توجد حملات بعد.</p>
               )}
               {campaigns.map((campaign) => (
-                <div key={campaign.id} className="space-y-2 p-3">
+                <div key={campaign["id"]} className="space-y-2 p-3">
                   <div className="flex items-center justify-between">
-                    <strong>{campaign.name}</strong>
+                    <strong>{campaign["name"]}</strong>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs">
-                      {queuedCount(campaign.id)} مجهزة
+                      {queuedCount(campaign["id"])} مجهزة
                     </span>
                   </div>
-                  <p className="line-clamp-2 text-xs text-gray-500">{campaign.template}</p>
+                  <p className="line-clamp-2 text-xs text-gray-500">{campaign["template"]}</p>
                   <Button
                     size="sm"
                     variant="outline"
@@ -522,24 +554,24 @@ export default function RetentionManager({ adminData }: any) {
               </thead>
               <tbody>
                 {profiles.map((customer) => (
-                  <tr key={customer.id} className="border-t">
+                  <tr key={customer["id"]} className="border-t">
                     <td className="p-3">
-                      <strong>{customer.name}</strong>
+                      <strong>{customer["name"]}</strong>
                       <p dir="ltr" className="w-fit text-gray-500">
-                        {customer.phone}
+                        {customer["phone"]}
                       </p>
                     </td>
-                    <td className="p-3">{customer.orders_count}</td>
+                    <td className="p-3">{customer["orders_count"]}</td>
                     <td className="p-3 font-bold">
-                      {formatCurrency(customer.total_spent, store.currency)}
+                      {formatCurrency(customer["total_spent"], store.currency)}
                     </td>
                     <td className="p-3">
-                      {customer.last_order_at
-                        ? new Date(customer.last_order_at).toLocaleDateString("ar-SA")
+                      {customer["last_order_at"]
+                        ? new Date(customer["last_order_at"]).toLocaleDateString("ar-SA")
                         : "—"}
                     </td>
                     <td className="p-3">
-                      {optedIn.has(customer.id) ? (
+                      {optedIn.has(customer["id"]) ? (
                         <Button
                           size="sm"
                           variant="outline"

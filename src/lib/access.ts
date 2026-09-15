@@ -20,7 +20,7 @@ export async function signInToStore(
     const role = allowedRoles[0];
     if (!role) throw new Error("لم تحدد صلاحية للدخول");
     sessionStorage.setItem(demoKey(slug, role), "1");
-    if (allowedRoles[0] === 'admin') unlockedAdmins.add(slug);
+    if (allowedRoles[0] === "admin") unlockedAdmins.add(slug);
     return { role };
   }
   if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(email.toLowerCase()) || !/^[\w-]+$/.test(slug))
@@ -28,7 +28,8 @@ export async function signInToStore(
   const loginEmail = `${email.toLowerCase()}.${slug}@staff.flavor-flow.invalid`;
   const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
   if (error || !data.user) throw new Error("اسم المستخدم أو كلمة المرور غير صحيحة");
-  if (data.user.app_metadata?.staff_password_pending) return { needsPasswordChange: true, role: '' };
+  if (data.user.app_metadata?.["staff_password_pending"])
+    return { needsPasswordChange: true, role: "" };
   const { data: membership, error: membershipError } = await client
     .from("store_members")
     .select("role, stores!inner(id, slug)")
@@ -36,10 +37,10 @@ export async function signInToStore(
     .eq("stores.slug", slug)
     .maybeSingle();
   if (membershipError || !membership || !allowedRoles.includes(membership.role)) {
-    await client.auth.signOut({ scope: 'local' });
+    await client.auth.signOut({ scope: "local" });
     throw new Error("لا يملك الحساب صلاحية دخول هذه الصفحة في المطعم المحدد");
   }
-  if (allowedRoles[0] === 'admin') unlockedAdmins.add(slug);
+  if (allowedRoles[0] === "admin") unlockedAdmins.add(slug);
   return membership;
 }
 
@@ -61,7 +62,7 @@ export async function hasStoreAccess(slug: string, roles: string[], client = sup
 export async function signOutStore(kitchen = false) {
   if (!kitchen) unlockedAdmins.clear();
   if (isMockMode) sessionStorage.clear();
-  else await (kitchen ? kitchenSupabase : supabase).auth.signOut({ scope: 'local' });
+  else await (kitchen ? kitchenSupabase : supabase).auth.signOut({ scope: "local" });
 }
 
 const platformDemoKey = "demo_access:platform:owner";

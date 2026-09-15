@@ -32,3 +32,8 @@ dist-ssr
 *.sw?
 .legacy-archive/
 lovable-menu/
+output/
+outputs/
+tmp/
+backups/
+supabase/.temp/

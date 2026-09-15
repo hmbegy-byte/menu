@@ -1,7 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { Printer, Check, XCircle, Clock, TimerReset } from "lucide-react";
+import { CarFront, Printer, Check, XCircle, Clock, TimerReset } from "lucide-react";
+import type { KitchenOrder, KitchenStore } from "../lib/orderTypes";
 
-export default function OrderCard({ order, store, onUpdateStatus, onPrint, onDelay }) {
+export default function OrderCard({
+  order,
+  store,
+  onUpdateStatus,
+  onPrint,
+  onDelay,
+  onAcknowledgeCurbside,
+}: {
+  order: KitchenOrder;
+  store: KitchenStore;
+  onUpdateStatus: (id: string, status: string) => Promise<void>;
+  onPrint: (order: KitchenOrder) => void;
+  onDelay?: (id: string, minutes: number) => Promise<void>;
+  onAcknowledgeCurbside?: (id: string) => Promise<void>;
+}) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 30000);
@@ -33,14 +48,34 @@ export default function OrderCard({ order, store, onUpdateStatus, onPrint, onDel
           <span
             className={`mr-2 rounded-full px-2 py-1 font-bold ${elapsed >= lateAt ? "bg-red-600 text-white" : elapsed >= warningAt ? "bg-amber-500 text-white" : "bg-gray-100"}`}
           >
-            {elapsed} د {['pending','preparing'].includes(order.status) && (elapsed>=lateAt ? '— متأخر' : elapsed>=warningAt ? '— يحتاج متابعة' : '')}
+            {elapsed} د{" "}
+            {["pending", "preparing"].includes(order.status) &&
+              (elapsed >= lateAt ? "— متأخر" : elapsed >= warningAt ? "— يحتاج متابعة" : "")}
           </span>
         </div>
       </div>
 
       <div className="space-y-1 text-sm">
+        {order.pickup_method === "curbside" && order.curbside_arrived_at && (
+          <div className="mb-3 rounded-xl border-2 border-blue-400 bg-blue-50 p-3 text-blue-950">
+            <p className="flex items-center gap-2 font-black">
+              <CarFront size={18} /> العميل وصل بالسيارة
+            </p>
+            {order.car_description && <p className="mt-1 font-bold">{order.car_description}</p>}
+            <button
+              type="button"
+              disabled={Boolean(order.curbside_acknowledged_at)}
+              onClick={() => onAcknowledgeCurbside?.(order.id)}
+              className="mt-2 rounded-lg bg-blue-700 px-3 py-2 font-bold text-white disabled:bg-gray-400"
+            >
+              {order.curbside_acknowledged_at ? "تم تأكيد التنبيه" : "تأكيد استلام التنبيه"}
+            </button>
+          </div>
+        )}
         <div className="font-semibold text-gray-800">{order.customer_name}</div>
-        <div className="text-gray-600" dir="ltr">{order.customer_phone}</div>
+        <div className="text-gray-600" dir="ltr">
+          {order.customer_phone}
+        </div>
         <div className="flex gap-2 items-center mt-2">
           <span
             className={`px-2 py-1 rounded text-xs font-bold ${order.order_type === "delivery" ? "bg-blue-50 text-blue-700" : "bg-orange-50 text-orange-700"}`}

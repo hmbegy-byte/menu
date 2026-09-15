@@ -1,16 +1,18 @@
 import { useState } from "react";
+import type { FormEvent } from "react";
+import type { AdminViewData } from "../../lib/adminViewTypes";
 import { Building2, ExternalLink, Plus, Trash2 } from "lucide-react";
 
 const emptyBranch = { branch_name: "", slug: "", phone_whatsapp: "", is_active: true };
 
-export default function BranchManager({ adminData }) {
+export default function BranchManager({ adminData }: { adminData: AdminViewData }) {
   const { branches, saveBranch, deleteBranch, plan } = adminData;
   const [form, setForm] = useState(emptyBranch);
   const [message, setMessage] = useState("");
   const limit = plan.limits.branches;
   const canAdd = branches.length < limit;
 
-  const submit = async (event) => {
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setMessage("");
     try {

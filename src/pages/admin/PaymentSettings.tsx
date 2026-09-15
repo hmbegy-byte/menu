@@ -1,12 +1,29 @@
 import React, { useState } from "react";
-import { useUnsavedForm } from '../../hooks/useUnsavedForm';
+import { useUnsavedForm } from "../../hooks/useUnsavedForm";
 import { CreditCard, Banknote, Landmark, ShieldCheck, WalletCards } from "lucide-react";
 
-export default function PaymentSettings({ adminData }) {
+type Payment = {
+  currency: string;
+  cashOnDelivery: boolean;
+  bankTransfer: boolean;
+  bankAccountDetails: string;
+  paymentProvider: string;
+  providerConnected: boolean;
+  applePayEnabled: boolean;
+  merchantProfileId: string;
+};
+export default function PaymentSettings({
+  adminData,
+}: {
+  adminData: {
+    payment?: Partial<Payment>;
+    saveStoreSection: (section: string, value: Payment) => Promise<unknown>;
+  };
+}) {
   const { payment, saveStoreSection } = adminData;
 
   const [formData, setFormData] = useState({
-    currency: payment?.currency || "EGP",
+    currency: payment?.currency || "SAR",
     cashOnDelivery: payment?.cashOnDelivery ?? true,
     bankTransfer: payment?.bankTransfer ?? false,
     bankAccountDetails: payment?.bankAccountDetails || "",
@@ -17,9 +34,9 @@ export default function PaymentSettings({ adminData }) {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const {markSaved}=useUnsavedForm(formData);
+  const { markSaved } = useUnsavedForm(formData);
 
-  const saveToLocal = async (e) => {
+  const saveToLocal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!formData.cashOnDelivery && !formData.bankTransfer) {
       alert("فعّل طريقة دفع واحدة على الأقل.");
@@ -150,7 +167,7 @@ export default function PaymentSettings({ adminData }) {
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold ${formData.providerConnected ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
               >
-                {formData.providerConnected ? "المزود متصل" : "بانتظار الربط"}
+                غير متاح في الإصدار الحالي
               </span>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -183,8 +200,8 @@ export default function PaymentSettings({ adminData }) {
               </span>
               <input
                 type="checkbox"
-                disabled={!formData.providerConnected}
-                checked={formData.applePayEnabled && formData.providerConnected}
+                disabled
+                checked={false}
                 onChange={(e) => setFormData({ ...formData, applePayEnabled: e.target.checked })}
               />
             </label>

@@ -1,124 +1,400 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { useStoreData } from '../hooks/useStoreData';
-import { BrandUpdater } from '../components/BrandUpdater';
-import { QRCodeSVG } from 'qrcode.react';
-import { Button } from '../components/ui/button';
-import type { Session } from '@supabase/supabase-js';
-import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
-import AcceptInvitation from './AcceptInvitation';
+import { useEffect, useState } from "react";
+import { isMockMode, supabase } from "../lib/supabase";
+import { readDemoData, writeDemo } from "../lib/storeDefaults";
+import { useStoreData } from "../hooks/useStoreData";
+import { BrandUpdater } from "../components/BrandUpdater";
+import { QRCodeSVG } from "qrcode.react";
+import { Button } from "../components/ui/button";
+import type { Session } from "@supabase/supabase-js";
+import { normalizeLoyaltyPhone } from "../lib/loyaltyPhone.mjs";
+import { createDemoLoyaltyCustomer } from "../lib/demoLoyalty.mjs";
+import AcceptInvitation from "./AcceptInvitation";
+import type {
+  LoyaltyProgram,
+  LoyaltyCustomer,
+  LoyaltyReward,
+  LoyaltyRule,
+  LoyaltyWindow,
+} from "../lib/loyaltyTypes";
 
 export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const { store, brand_assets, loading: storeLoading } = useStoreData(storeSlug);
   const [session, setSession] = useState<Session | null>(null);
-  const [program, setProgram] = useState<any>(null);
-  const [rewards,setRewards]=useState<any[]>([]);
-  const [rules,setRules]=useState<any[]>([]);
-  const [account, setAccount] = useState<any>(null);
+  const [program, setProgram] = useState<LoyaltyProgram | null>(null);
+  const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
+  const [rules, setRules] = useState<LoyaltyRule[]>([]);
+  const [account, setAccount] = useState<LoyaltyCustomer | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [consent, setConsent] = useState(false);
-  const [phone, setPhone] = useState('');
-  const [name, setName] = useState('');
+  const [phone, setPhone] = useState("");
+  const [name, setName] = useState("");
   const [refresh, setRefresh] = useState(0);
-  const [invitation,setInvitation]=useState('');
-  const [staffLogin,setStaffLogin]=useState(false);
+  const [invitation, setInvitation] = useState("");
+  const [staffLogin, setStaffLogin] = useState(false);
   useEffect(() => {
-    setInvitation(new URLSearchParams(window.location.search).get('invite') || '');
-    setStaffLogin(new URLSearchParams(window.location.search).get('staff')==='1');
-    if (new URLSearchParams(window.location.hash.slice(1)).has('error') || new URLSearchParams(window.location.search).has('error')) {
-      setError('لم يكتمل تسجيل الدخول. حاول مجددًا.');
-      window.history.replaceState(null, '', window.location.pathname);
+    setInvitation(new URLSearchParams(window.location.search).get("invite") || "");
+    setStaffLogin(new URLSearchParams(window.location.search).get("staff") === "1");
+    if (
+      new URLSearchParams(window.location.hash.slice(1)).has("error") ||
+      new URLSearchParams(window.location.search).has("error")
+    ) {
+      setError("لم يكتمل تسجيل الدخول. حاول مجددًا.");
+      window.history.replaceState(null, "", window.location.pathname);
     }
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
+    if (isMockMode) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, next) => setSession(next));
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     return () => subscription.unsubscribe();
   }, []);
   useEffect(() => {
-    if (!store?.organization_id) { if (!storeLoading) setLoading(false); return; }
+    if (!store?.organization_id) {
+      if (!storeLoading) setLoading(false);
+      return;
+    }
     let active = true;
-    setLoading(true); setAccount(null); setProgram(null);
+    setLoading(true);
+    setAccount(null);
+    setProgram(null);
     (async () => {
       try {
-        const result = await supabase.from('loyalty_programs').select('*').eq('organization_id', store.organization_id).eq('is_active', true).maybeSingle();
+        if (isMockMode) {
+          const demo = readDemoData();
+          if (!active) return;
+          setProgram(demo.loyaltyProgram?.is_active ? demo.loyaltyProgram : null);
+          setRewards(
+            (demo.loyaltyRewards || []).filter(
+              (item: LoyaltyReward & { is_active?: boolean }) => item.is_active !== false,
+            ),
+          );
+          setRules(
+            (demo.loyaltyRules || []).filter(
+              (item: LoyaltyRule & { is_active?: boolean }) => item.is_active !== false,
+            ),
+          );
+          setAccount(demo.loyaltyCustomers?.[0] || null);
+          return;
+        }
+        const result = await supabase
+          .from("loyalty_programs")
+          .select("*")
+          .eq("organization_id", store.organization_id)
+          .eq("is_active", true)
+          .maybeSingle();
         if (result.error) throw result.error;
         if (!active) return;
         setProgram(result.data);
-        const [rewardRows,ruleRows]=await Promise.all([supabase.from('loyalty_rewards').select('*').eq('organization_id',store.organization_id).eq('is_active',true),supabase.from('loyalty_earning_rules').select('*').eq('organization_id',store.organization_id).eq('is_active',true)]);
-        const current=(r:any)=>(!r.valid_from||Date.parse(r.valid_from)<=Date.now())&&(!r.valid_until||Date.parse(r.valid_until)>Date.now());
-        if(active){setRewards((rewardRows.data||[]).filter(current));setRules((ruleRows.data||[]).filter(current));}
+        const [rewardRows, ruleRows] = await Promise.all([
+          supabase
+            .from("loyalty_rewards")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .eq("is_active", true),
+          supabase
+            .from("loyalty_earning_rules")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .eq("is_active", true),
+        ]);
+        const current = (r: LoyaltyWindow) =>
+          (!r.valid_from || Date.parse(r.valid_from) <= Date.now()) &&
+          (!r.valid_until || Date.parse(r.valid_until) > Date.now());
+        if (active) {
+          setRewards((rewardRows.data || []).filter(current));
+          setRules((ruleRows.data || []).filter(current));
+        }
         if (result.data && session?.user.id) {
-          const membership = await supabase.from('loyalty_customers').select('*').eq('organization_id', store.organization_id).eq('auth_user_id', session.user.id).maybeSingle();
+          const membership = await supabase
+            .from("loyalty_customers")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .eq("auth_user_id", session.user.id)
+            .maybeSingle();
           if (membership.error) throw membership.error;
           if (active) setAccount(membership.data);
         }
-      } catch { if (active) setError('تعذر تحميل بطاقة الولاء. حاول مجددًا.'); }
-      finally { if (active) setLoading(false); }
+      } catch {
+        if (active) setError("تعذر تحميل بطاقة الولاء. حاول مجددًا.");
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [store?.organization_id, storeLoading, session?.user.id, refresh]);
   async function login() {
-    setBusy(true); setError('');
+    setBusy(true);
+    setError("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/s/${encodeURIComponent(storeSlug)}/loyalty`, queryParams: { prompt: 'select_account' } } });
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/s/${encodeURIComponent(storeSlug)}/loyalty`,
+          queryParams: { prompt: "select_account" },
+        },
+      });
       if (error) throw error;
-    } catch { setError('تسجيل الدخول بقوقل غير متاح الآن. حاول لاحقًا.'); }
-    finally { setBusy(false); }
+    } catch {
+      setError("تسجيل الدخول بقوقل غير متاح الآن. حاول لاحقًا.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function join() {
     if (!consent || !store?.id) return;
     const normalized = normalizeLoyaltyPhone(phone);
-    if (!normalized || name.trim().length < 2) { setError('اكتب اسمك ورقم جوال صالحًا مثل 0501234567.'); return; }
-    setBusy(true); setError('');
+    if (!normalized || name.trim().length < 2) {
+      setError("اكتب اسمك ورقم جوال صالحًا مثل 0501234567.");
+      return;
+    }
+    setBusy(true);
+    setError("");
     try {
-      const result = await supabase.rpc('join_loyalty_program', { p_store_id: store.id, p_consent: true, p_phone: normalized, p_name: name.trim() });
+      if (isMockMode) {
+        const demo = readDemoData();
+        const existing = (demo.loyaltyCustomers || []).find(
+          (customer: LoyaltyCustomer) => customer.phone === normalized,
+        );
+        const created: LoyaltyCustomer =
+          existing || (createDemoLoyaltyCustomer(name, normalized) satisfies LoyaltyCustomer);
+        const customers = existing ? demo.loyaltyCustomers : [created, ...demo.loyaltyCustomers];
+        writeDemo("loyaltyCustomers", customers);
+        setAccount(created);
+        return;
+      }
+      const result = await supabase.rpc("join_loyalty_program", {
+        p_store_id: store.id,
+        p_consent: true,
+        p_phone: normalized,
+        p_name: name.trim(),
+      });
       if (result.error) throw result.error;
       setAccount(result.data);
-    } catch { setError('تعذر إنشاء العضوية. حاول مجددًا.'); }
-    finally { setBusy(false); }
+    } catch {
+      setError("تعذر إنشاء العضوية. حاول مجددًا.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function signOut() {
-    const { error } = await supabase.auth.signOut({ scope: 'local' });
-    if (error) setError('تعذر تسجيل الخروج.');
-    else { setAccount(null); setConsent(false); }
+    if (isMockMode) {
+      setAccount(null);
+      setConsent(false);
+      return;
+    }
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) setError("تعذر تسجيل الخروج.");
+    else {
+      setAccount(null);
+      setConsent(false);
+    }
   }
   if (invitation) return <AcceptInvitation token={invitation} storeSlug={storeSlug} />;
-  if (staffLogin) return <main dir="rtl" className="min-h-screen bg-background p-6 text-foreground"><div className="mx-auto max-w-md space-y-4"><h1 className="text-2xl font-bold">دخول فريق المطعم</h1><p>استخدم اسم المستخدم وكلمة المرور التي يحددها مالك المنصة.</p><a className="block underline" href="/admin">دخول إدارة المطعم</a><a className="block underline" href="/kitchen">دخول المطبخ</a></div></main>;
-  return <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
-    <BrandUpdater assets={brand_assets} isStore />
-    <div className="mx-auto max-w-md space-y-5">
-      <a href={`/s/${encodeURIComponent(storeSlug)}`} className="text-primary underline">العودة إلى قائمة المطعم</a>
-      <section className="space-y-5 rounded-3xl border bg-card p-6 text-center text-card-foreground">
-        {store?.logo_url && <img src={store.logo_url} alt={store.name} className="mx-auto h-20 w-20 rounded-full object-cover" />}
-        <h1 className="text-2xl font-bold">{store?.name} — الولاء والمكافآت</h1>
-        {error && <p role="alert" className="text-destructive">{error}</p>}
-        {storeLoading || loading ? <p role="status">جاري التحميل…</p> : !store ? <p>تعذر العثور على المطعم.</p> : !program ? <p>برنامج الولاء غير مفعل حاليًا لهذا المطعم.</p> : !session ? <>
-          <p>ادخل بحساب قوقل لعرض بطاقتك أو الانضمام إلى البرنامج.</p>
-          <Button onClick={login} disabled={busy} className="w-full">المتابعة باستخدام Google</Button>
-          <p className="text-sm text-muted-foreground">لا تحتاج كلمة مرور جديدة أو رسالة جوال.</p>
-        </> : !account ? <>
-          <p>مرحبًا {session.user.user_metadata?.full_name || session.user.email}</p>
-          <label className="block text-start">اسمك لدى المطعم<input className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground" value={name} maxLength={100} onChange={e => setName(e.target.value)} autoComplete="name" /></label>
-          <label className="block text-start">رقم الجوال<input type="tel" dir="ltr" className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground" value={phone} maxLength={20} onChange={e => setPhone(e.target.value)} placeholder="05XXXXXXXX" autoComplete="tel" /></label>
-          <label className="flex items-start gap-3 text-start"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-1" /><span>أوافق على إنشاء عضوية لدى {store.name} وحفظ اسمي ومعرّف حسابي لإدارة نقاطي. الانضمام لا يعني الموافقة على الرسائل التسويقية. <a href="/legal/privacy" className="text-primary underline">سياسة الخصوصية</a></span></label>
-          <Button onClick={join} disabled={!consent || !name.trim() || !phone.trim() || busy} className="w-full">{busy ? 'جارٍ إنشاء العضوية…' : 'انضم مجانًا'}</Button>
-        </> : <>
-          <p>{account.name || 'بطاقتك'}</p>
-          <p dir="ltr">{account.contact_phone || account.phone}</p>
-          <p className="text-5xl font-bold text-primary">{program.program_type === 'stamps' ? account.stamps_balance : account.points_balance}</p>
-          <p>{program.program_type === 'stamps' ? program.stamps_name : program.points_name}</p>
-          {program.program_type === 'hybrid' && <p>{account.stamps_balance} {program.stamps_name}</p>}
-          <div className="mx-auto w-fit rounded-2xl bg-white p-4"><QRCodeSVG value={JSON.stringify({ a: account.id, t: account.qr_token })} size={200} level="H" /></div>
-          <p>اعرض هذا الرمز لموظف المطعم لإضافة النقاط أو استبدالها.</p>
-          <p className="text-sm">رقم العضوية: {account.membership_number}</p>
-          <section className="text-start space-y-3"><h2 className="font-bold">كيف تكسب الرصيد؟</h2><p>يُحتسب عند اكتمال طلبك باستخدام رقم جوال عضويتك. الحد الأدنى للطلب: {program.min_order_amount} ر.س. يتم تجاهل كسور النقاط والأختام.</p>{rules.filter(r=>program.program_type==='hybrid'||r.currency_type===program.program_type).map(r=><p key={r.id}>{r.conditions?.title||'قاعدة كسب'}: {r.reward_value} {r.currency_type==='points'?'نقطة':'ختم'} {r.rule_type==='points_per_currency'?'لكل ريال':r.rule_type==='stamps_for_items'?'لكل وحدة من الصنف المحدد':'لكل طلب مؤهل'}، بحد أدنى {r.min_amount||0} ر.س.</p>)}</section>
-          <section className="text-start space-y-3"><h2 className="font-bold">المكافآت</h2><p>اعرض بطاقتك للعامل واطلب المكافأة؛ يخصم الرصيد عند تأكيد التسليم.</p>{rewards.map(r=><div key={r.id} className="border rounded-xl p-3"><h3 className="font-bold">{r.conditions?.title||'مكافأة المطعم'}</h3><p>{r.points_cost||0} نقطة + {r.stamps_cost||0} ختم</p><p>{account.points_balance>=(r.points_cost||0)&&account.stamps_balance>=(r.stamps_cost||0)?'رصيدك يكفي لهذه المكافأة':`ينقصك ${Math.max(0,(r.points_cost||0)-account.points_balance)} نقطة و${Math.max(0,(r.stamps_cost||0)-account.stamps_balance)} ختم`}</p>{r.valid_until&&<p>صالحة حتى {new Date(r.valid_until).toLocaleDateString('ar-SA')}</p>}</div>)}{!rewards.length&&<p>لم يحدد المطعم مكافآت متاحة بعد.</p>}</section>
-          <details className="rounded-xl border p-4 text-start"><summary className="cursor-pointer font-bold">حفظ البطاقة على شاشة الجوال</summary><p className="mt-3">آيفون: افتح الصفحة في Safari ثم المشاركة ← إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">أندرويد: من قائمة المتصفح اختر إضافة إلى الشاشة الرئيسية.</p><p className="mt-2">يمكنك فتح البطاقة من جهاز آخر بتسجيل الدخول بنفس حساب قوقل.</p></details>
-        </>}
-        <Button variant="outline" onClick={() => { setError(''); setRefresh(n => n + 1); }} disabled={loading}>تحديث</Button>
-        {session && <Button variant="ghost" onClick={signOut}>تسجيل الخروج</Button>}
-      </section>
-    </div>
-  </main>;
+  if (staffLogin)
+    return (
+      <main dir="rtl" className="min-h-screen bg-background p-6 text-foreground">
+        <div className="mx-auto max-w-md space-y-4">
+          <h1 className="text-2xl font-bold">دخول فريق المطعم</h1>
+          <p>استخدم اسم المستخدم وكلمة المرور التي يحددها مالك المنصة.</p>
+          <a className="block underline" href="/admin">
+            دخول إدارة المطعم
+          </a>
+          <a className="block underline" href="/kitchen">
+            دخول المطبخ
+          </a>
+        </div>
+      </main>
+    );
+  return (
+    <main dir="rtl" className="min-h-screen bg-background text-foreground px-4 py-8">
+      <BrandUpdater assets={brand_assets} isStore />
+      <div className="mx-auto max-w-md space-y-5">
+        <a href={`/s/${encodeURIComponent(storeSlug)}`} className="text-primary underline">
+          العودة إلى قائمة المطعم
+        </a>
+        <section className="space-y-5 rounded-3xl border bg-card p-6 text-center text-card-foreground">
+          {store?.logo_url && (
+            <img
+              src={store.logo_url}
+              alt={store.name}
+              className="mx-auto h-20 w-20 rounded-full object-cover"
+            />
+          )}
+          <h1 className="text-2xl font-bold">{store?.name} — الولاء والمكافآت</h1>
+          {error && (
+            <p role="alert" className="text-destructive">
+              {error}
+            </p>
+          )}
+          {storeLoading || loading ? (
+            <p role="status">جاري التحميل…</p>
+          ) : !store ? (
+            <p>تعذر العثور على المطعم.</p>
+          ) : !program ? (
+            <p>برنامج الولاء غير مفعل حاليًا لهذا المطعم.</p>
+          ) : !session && !isMockMode ? (
+            <>
+              <p>ادخل بحساب قوقل لعرض بطاقتك أو الانضمام إلى البرنامج.</p>
+              <Button onClick={login} disabled={busy} className="w-full">
+                المتابعة باستخدام Google
+              </Button>
+              <p className="text-sm text-muted-foreground">
+                لا تحتاج كلمة مرور جديدة أو رسالة جوال.
+              </p>
+            </>
+          ) : !account ? (
+            <>
+              {session && (
+                <p>مرحبًا {session.user.user_metadata?.["full_name"] || session.user.email}</p>
+              )}
+              {isMockMode && <p>جرّب إنشاء بطاقة ولاء محلية دون إرسال أي بيانات خارج جهازك.</p>}
+              <label className="block text-start">
+                اسمك لدى المطعم
+                <input
+                  className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground"
+                  value={name}
+                  maxLength={100}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
+              </label>
+              <label className="block text-start">
+                رقم الجوال
+                <input
+                  type="tel"
+                  dir="ltr"
+                  className="mt-2 w-full rounded-xl border bg-background p-3 text-foreground"
+                  value={phone}
+                  maxLength={20}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="05XXXXXXXX"
+                  autoComplete="tel"
+                />
+              </label>
+              <label className="flex items-start gap-3 text-start">
+                <input
+                  type="checkbox"
+                  checked={consent}
+                  onChange={(e) => setConsent(e.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  أوافق على إنشاء عضوية لدى {store.name} وحفظ اسمي ورقم جوالي لإدارة نقاطي. الانضمام
+                  لا يعني الموافقة على الرسائل التسويقية.{" "}
+                  <a href="/legal/privacy" className="text-primary underline">
+                    سياسة الخصوصية
+                  </a>
+                </span>
+              </label>
+              <Button
+                onClick={join}
+                disabled={!consent || !name.trim() || !phone.trim() || busy}
+                className="w-full"
+              >
+                {busy ? "جارٍ إنشاء العضوية…" : "انضم مجانًا"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <p>{account.name || "بطاقتك"}</p>
+              <p dir="ltr">{account.contact_phone || account.phone}</p>
+              <p className="text-5xl font-bold text-primary">
+                {program.program_type === "stamps"
+                  ? account.stamps_balance
+                  : account.points_balance}
+              </p>
+              <p>{program.program_type === "stamps" ? program.stamps_name : program.points_name}</p>
+              {program.program_type === "hybrid" && (
+                <p>
+                  {account.stamps_balance} {program.stamps_name}
+                </p>
+              )}
+              <div className="mx-auto w-fit rounded-2xl bg-white p-4">
+                <QRCodeSVG
+                  value={JSON.stringify({ a: account.id, t: account.qr_token })}
+                  size={200}
+                  level="H"
+                />
+              </div>
+              <p>اعرض هذا الرمز لموظف المطعم لإضافة النقاط أو استبدالها.</p>
+              <p className="text-sm">رقم العضوية: {account.membership_number}</p>
+              <section className="text-start space-y-3">
+                <h2 className="font-bold">كيف تكسب الرصيد؟</h2>
+                <p>
+                  يُحتسب عند اكتمال طلبك باستخدام رقم جوال عضويتك. الحد الأدنى للطلب:{" "}
+                  {program.min_order_amount} ر.س. يتم تجاهل كسور النقاط والأختام.
+                </p>
+                {rules
+                  .filter(
+                    (r) =>
+                      program.program_type === "hybrid" || r.currency_type === program.program_type,
+                  )
+                  .map((r) => (
+                    <p key={r.id}>
+                      {r.conditions?.title || "قاعدة كسب"}: {r.reward_value}{" "}
+                      {r.currency_type === "points" ? "نقطة" : "ختم"}{" "}
+                      {r.rule_type === "points_per_currency"
+                        ? "لكل ريال"
+                        : r.rule_type === "stamps_for_items"
+                          ? "لكل وحدة من الصنف المحدد"
+                          : "لكل طلب مؤهل"}
+                      ، بحد أدنى {r.min_amount || 0} ر.س.
+                    </p>
+                  ))}
+              </section>
+              <section className="text-start space-y-3">
+                <h2 className="font-bold">المكافآت</h2>
+                <p>اعرض بطاقتك للعامل واطلب المكافأة؛ يخصم الرصيد عند تأكيد التسليم.</p>
+                {rewards.map((r) => (
+                  <div key={r.id} className="border rounded-xl p-3">
+                    <h3 className="font-bold">{r.conditions?.title || "مكافأة المطعم"}</h3>
+                    <p>
+                      {r.points_cost || 0} نقطة + {r.stamps_cost || 0} ختم
+                    </p>
+                    <p>
+                      {account.points_balance >= (r.points_cost || 0) &&
+                      account.stamps_balance >= (r.stamps_cost || 0)
+                        ? "رصيدك يكفي لهذه المكافأة"
+                        : `ينقصك ${Math.max(0, (r.points_cost || 0) - account.points_balance)} نقطة و${Math.max(0, (r.stamps_cost || 0) - account.stamps_balance)} ختم`}
+                    </p>
+                    {r.valid_until && (
+                      <p>صالحة حتى {new Date(r.valid_until).toLocaleDateString("ar-SA")}</p>
+                    )}
+                  </div>
+                ))}
+                {!rewards.length && <p>لم يحدد المطعم مكافآت متاحة بعد.</p>}
+              </section>
+              <details className="rounded-xl border p-4 text-start">
+                <summary className="cursor-pointer font-bold">حفظ البطاقة على شاشة الجوال</summary>
+                <p className="mt-3">
+                  آيفون: افتح الصفحة في Safari ثم المشاركة ← إضافة إلى الشاشة الرئيسية.
+                </p>
+                <p className="mt-2">أندرويد: من قائمة المتصفح اختر إضافة إلى الشاشة الرئيسية.</p>
+                <p className="mt-2">يمكنك فتح البطاقة من جهاز آخر بتسجيل الدخول بنفس حساب قوقل.</p>
+              </details>
+            </>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => {
+              setError("");
+              setRefresh((n) => n + 1);
+            }}
+            disabled={loading}
+          >
+            تحديث
+          </Button>
+          {session && !isMockMode && (
+            <Button variant="ghost" onClick={signOut}>
+              تسجيل الخروج
+            </Button>
+          )}
+        </section>
+      </div>
+    </main>
+  );
 }

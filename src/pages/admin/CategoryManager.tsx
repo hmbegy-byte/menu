@@ -1,10 +1,25 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, GripVertical, Check, X } from "lucide-react";
 
-export default function CategoryManager({ adminData }) {
+type Category = {
+  id: string;
+  name: string;
+  description: string;
+  display_order: number;
+  is_active: boolean;
+};
+export default function CategoryManager({
+  adminData,
+}: {
+  adminData: {
+    categories: Category[];
+    saveEntity: (table: string, value: Omit<Category, "id"> & { id?: string }) => Promise<unknown>;
+    deleteEntity: (table: string, id: string) => Promise<unknown>;
+  };
+}) {
   const { categories, saveEntity, deleteEntity } = adminData;
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -13,7 +28,7 @@ export default function CategoryManager({ adminData }) {
     is_active: true,
   });
 
-  const handleOpenModal = (category = null) => {
+  const handleOpenModal = (category: Category | null = null) => {
     if (category) {
       setEditingCategory(category);
       setFormData({ ...category });
@@ -29,7 +44,7 @@ export default function CategoryManager({ adminData }) {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
       await saveEntity(
@@ -42,7 +57,7 @@ export default function CategoryManager({ adminData }) {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (confirm("هل أنت متأكد من حذف هذا التصنيف؟")) {
       try {
         await deleteEntity("categories", id);
@@ -128,7 +143,7 @@ export default function CategoryManager({ adminData }) {
 
             {categories.length === 0 && (
               <tr>
-                <td colSpan="4" className="px-6 py-12 text-center text-gray-500">
+                <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
                   لا توجد تصنيفات مضافة بعد.
                 </td>
               </tr>

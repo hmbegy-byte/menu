@@ -1,100 +1,218 @@
 import { useEffect, useRef, useState } from "react";
-import { supabase as adminSupabase, kitchenSupabase } from "../lib/supabase";
-import { hasStoreAccess } from '../lib/access';
-import { normalizeLoyaltyPhone } from '../lib/loyaltyPhone.mjs';
-import { BrowserQRCodeReader, type IScannerControls } from "@zxing/browser";
+import { isMockMode, supabase as adminSupabase, kitchenSupabase } from "../lib/supabase";
+import { readDemoData, writeDemo } from "../lib/storeDefaults";
+import { hasStoreAccess } from "../lib/access";
+import { normalizeLoyaltyPhone } from "../lib/loyaltyPhone.mjs";
+import { adjustDemoLoyaltyBalance, redeemDemoLoyaltyReward } from "../lib/demoLoyalty.mjs";
+import { BrowserQRCodeReader } from "@zxing/browser";
+import { createScanLifecycle } from "../lib/scanLifecycle.mjs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { ScanLine, UserCheck, Plus, Minus, AlertCircle } from "lucide-react";
+import type { LoyaltyCustomer, LoyaltyReward } from "../lib/loyaltyTypes";
 
-export default function StaffScannerPage({ storeSlug, kitchen = false }: { storeSlug: string; kitchen?: boolean }) {
+export default function StaffScannerPage({
+  storeSlug,
+  kitchen = false,
+}: {
+  storeSlug: string;
+  kitchen?: boolean;
+}) {
   const supabase = kitchen ? kitchenSupabase : adminSupabase;
-  const [store, setStore] = useState<any>(null);
-  const [manualAllowed,setManualAllowed]=useState(false);
-  const [rewards,setRewards]=useState<any[]>([]);
-  const redemptionKeys=useRef<Record<string,string>>({});
+  const [store, setStore] = useState<{ id: string; name: string; organization_id: string } | null>(
+    null,
+  );
+  const [manualAllowed, setManualAllowed] = useState(false);
+  const [rewards, setRewards] = useState<LoyaltyReward[]>([]);
+  const redemptionKeys = useRef<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   useEffect(() => {
     let active = true;
+    setLoading(true);
+    setError("");
+    setStore(null);
+    setRewards([]);
+    setManualAllowed(false);
+    setScannedCustomer(null);
+    setScanning(false);
     (async () => {
       try {
-        if (!await hasStoreAccess(storeSlug,['admin','kitchen','manager','cashier'],supabase)) throw new Error('AUTH_REQUIRED');
-        const result = await supabase.from('stores').select('id,name,organization_id').eq('slug',storeSlug).single();
-        if (result.error) throw new Error('تعذر تحميل المطعم');
-        const [p,r]=await Promise.all([supabase.from('loyalty_programs').select('allow_staff_adjustments,is_active').eq('organization_id',result.data.organization_id).maybeSingle(),supabase.from('loyalty_rewards').select('*').eq('organization_id',result.data.organization_id).eq('is_active',true)]);
-        if (active) {setStore(result.data);setManualAllowed(!kitchen||Boolean(p.data?.is_active&&p.data.allow_staff_adjustments));setRewards((r.data||[]).filter(x=>(!x.valid_from||Date.parse(x.valid_from)<=Date.now())&&(!x.valid_until||Date.parse(x.valid_until)>Date.now())));}
-      } catch(e) { if(active) setError(e instanceof Error ? e.message : 'تعذر التحميل'); }
-      finally {if(active) setLoading(false);}
+        if (
+          !(await hasStoreAccess(storeSlug, ["admin", "kitchen", "manager", "cashier"], supabase))
+        )
+          throw new Error("AUTH_REQUIRED");
+        if (isMockMode) {
+          const demo = readDemoData();
+          if (active) {
+            setStore({
+              id: demo.store.id,
+              name: demo.store.name,
+              organization_id: demo.store.organization_id,
+            });
+            setManualAllowed(!kitchen || Boolean(demo.loyaltyProgram.allow_staff_adjustments));
+            setRewards(
+              (demo.loyaltyRewards || []).filter(
+                (reward: LoyaltyReward & { is_active?: boolean }) => reward.is_active !== false,
+              ),
+            );
+          }
+          return;
+        }
+        const result = await supabase
+          .from("stores")
+          .select("id,name,organization_id")
+          .eq("slug", storeSlug)
+          .single();
+        if (result.error) throw new Error("تعذر تحميل المطعم");
+        const [p, r] = await Promise.all([
+          supabase
+            .from("loyalty_programs")
+            .select("allow_staff_adjustments,is_active")
+            .eq("organization_id", result.data.organization_id)
+            .maybeSingle(),
+          supabase
+            .from("loyalty_rewards")
+            .select("*")
+            .eq("organization_id", result.data.organization_id)
+            .eq("is_active", true),
+        ]);
+        if (p.error || r.error) throw new Error("تعذر تحميل صلاحيات الولاء والمكافآت");
+        if (active) {
+          setStore(result.data);
+          setManualAllowed(
+            !kitchen || Boolean(p.data?.is_active && p.data.allow_staff_adjustments),
+          );
+          setRewards(
+            (r.data || []).filter(
+              (x) =>
+                (!x.valid_from || Date.parse(x.valid_from) <= Date.now()) &&
+                (!x.valid_until || Date.parse(x.valid_until) > Date.now()),
+            ),
+          );
+        }
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : "تعذر التحميل");
+      } finally {
+        if (active) setLoading(false);
+      }
     })();
-    return () => {active = false;};
-  },[storeSlug,supabase]);
+    return () => {
+      active = false;
+    };
+  }, [storeSlug, supabase, kitchen]);
   const [scanning, setScanning] = useState(false);
-  const [scannedCustomer, setScannedCustomer] = useState<any>(null);
+  const [scannedCustomer, setScannedCustomer] = useState<LoyaltyCustomer | null>(null);
   const [adjustmentAmount, setAdjustmentAmount] = useState<number>(0);
   const [processing, setProcessing] = useState(false);
   const [scanError, setScanError] = useState("");
   const [reason, setReason] = useState("");
   const [phoneSearch, setPhoneSearch] = useState("");
-  const controlsRef = useRef<IScannerControls | null>(null);
-
-  useEffect(() => () => controlsRef.current?.stop(), []);
+  const controlsRef = useRef<{ stop: () => void } | null>(null);
+  useEffect(() => {
+    if (!scanning || !store?.id) return;
+    const storeId = store.id;
+    const lifecycle = createScanLifecycle((qrData: string) => {
+      void (async () => {
+        try {
+          const parsed: unknown = JSON.parse(qrData);
+          if (
+            !parsed ||
+            typeof parsed !== "object" ||
+            !("a" in parsed) ||
+            !("t" in parsed) ||
+            typeof parsed.a !== "string" ||
+            typeof parsed.t !== "string"
+          )
+            throw new Error("رمز QR غير معروف");
+          if (isMockMode) {
+            const customer = readDemoData().loyaltyCustomers.find(
+              (item: LoyaltyCustomer) => item.id === parsed.a && item.qr_token === parsed.t,
+            );
+            if (!customer) throw new Error("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
+            if (lifecycle.isActive()) setScannedCustomer(customer);
+            return;
+          }
+          const { data, error: lookupError } = await supabase.rpc("staff_loyalty_lookup", {
+            p_store_id: storeId,
+            p_customer_id: parsed.a,
+            p_token: parsed.t,
+          });
+          if (!lifecycle.isActive()) return;
+          if (lookupError || data?.length !== 1)
+            throw new Error("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
+          setScannedCustomer(data[0]);
+        } catch (failure) {
+          if (lifecycle.isActive())
+            setScanError(failure instanceof Error ? failure.message : "تعذر قراءة الرمز");
+        } finally {
+          if (lifecycle.isActive()) setScanning(false);
+        }
+      })();
+    });
+    controlsRef.current = lifecycle;
+    // Effects run after the video element is mounted.
+    const reader = new BrowserQRCodeReader();
+    void reader
+      .decodeFromVideoDevice(undefined, "video-preview", (result) => {
+        if (result) lifecycle.accept(result.getText());
+      })
+      .then((controls) => lifecycle.attach(controls))
+      .catch((failure) => {
+        if (lifecycle.isActive()) {
+          setScanError(failure instanceof Error ? failure.message : "تعذر تشغيل الكاميرا");
+          setScanning(false);
+        }
+      });
+    return () => {
+      lifecycle.stop();
+      controlsRef.current = null;
+    };
+  }, [scanning, store?.id, supabase]);
 
   if (loading) return <div className="min-h-screen grid place-items-center">جاري التحميل...</div>;
   if (error === "AUTH_REQUIRED") {
-    return <div className="min-h-screen grid place-items-center">يجب تسجيل الدخول كمسؤول أو موظف</div>;
+    return (
+      <div className="min-h-screen grid place-items-center">يجب تسجيل الدخول كمسؤول أو موظف</div>
+    );
   }
   if (!store) {
-    return <div className="min-h-screen grid place-items-center">المتجر غير موجود</div>;
+    return (
+      <div role="alert" className="min-h-screen grid place-items-center">
+        {error || "المتجر غير موجود"}
+      </div>
+    );
   }
 
-  const startScanning = async () => {
+  const startScanning = () => {
     setScanning(true);
     setScanError("");
-    try {
-      const codeReader = new BrowserQRCodeReader();
-      controlsRef.current = await codeReader.decodeFromVideoDevice(undefined, 'video-preview', (result, err) => {
-        if (result) {
-          handleScan(result.getText());
-          controlsRef.current?.stop();
-          setScanning(false);
-        }
-        if (err && err.name !== 'NotFoundException') {
-          console.error(err);
-        }
-      });
-    } catch (e: any) {
-      setScanError(e.message);
-      setScanning(false);
-    }
   };
 
   const findByPhone = async () => {
     setScanError("");
     const normalized = normalizeLoyaltyPhone(phoneSearch);
-    if (!normalized) { setScanError('أدخل رقم جوال صالحًا.'); return; }
-    const { data, error: lookupError } = await supabase.rpc('staff_loyalty_lookup', {p_store_id:store.id,p_phone:normalized});
-    if (lookupError || data?.length !== 1) setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
-    else setScannedCustomer(data[0]);
-  };
-
-  const handleScan = async (qrData: string) => {
-    try {
-      const parsed = JSON.parse(qrData);
-      if (parsed.a && parsed.t) {
-        // Fetch customer by token
-        const { data, error } = await supabase.rpc('staff_loyalty_lookup', {p_store_id:store.id,p_customer_id:parsed.a,p_token:parsed.t});
-          
-        if (error || data?.length !== 1) {
-          setScanError("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
-        } else {
-          setScannedCustomer(data[0]);
-        }
-      }
-    } catch (e) {
-      setScanError("رمز QR غير معروف");
+    if (!normalized) {
+      setScanError("أدخل رقم جوال صالحًا.");
+      return;
     }
+    if (isMockMode) {
+      const matches = readDemoData().loyaltyCustomers.filter(
+        (customer: LoyaltyCustomer) => customer.phone === normalized,
+      );
+      if (matches.length !== 1)
+        setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
+      else setScannedCustomer(matches[0]);
+      return;
+    }
+    const { data, error: lookupError } = await supabase.rpc("staff_loyalty_lookup", {
+      p_store_id: store.id,
+      p_phone: normalized,
+    });
+    if (lookupError || data?.length !== 1)
+      setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
+    else setScannedCustomer(data[0]);
   };
 
   const handleAdjustment = async (type: "add" | "deduct", currency: "points" | "stamps") => {
@@ -103,9 +221,25 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
       return;
     }
     setProcessing(true);
-    
+
     try {
       const signedAmount = type === "deduct" ? -adjustmentAmount : adjustmentAmount;
+      if (isMockMode) {
+        const demo = readDemoData();
+        const updated = adjustDemoLoyaltyBalance(scannedCustomer, signedAmount, currency);
+        writeDemo(
+          "loyaltyCustomers",
+          demo.loyaltyCustomers.map((customer: LoyaltyCustomer) =>
+            customer.id === updated.id ? updated : customer,
+          ),
+        );
+        setScannedCustomer(updated);
+        setAdjustmentAmount(0);
+        setReason("");
+        setScanError("تمت العملية بنجاح.");
+        setProcessing(false);
+        return;
+      }
       const { data, error: txError } = await supabase.rpc("adjust_loyalty_balance", {
         p_store_id: store.id,
         p_customer_id: scannedCustomer.id,
@@ -115,78 +249,137 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
       });
       if (txError) throw txError;
       const updated = Array.isArray(data) ? data[0] : data;
-        
+
       alert("تمت العملية بنجاح!");
       setScannedCustomer({ ...scannedCustomer, ...(updated || {}) });
       setAdjustmentAmount(0);
       setReason("");
-      
-    } catch (e: any) {
-      alert("حدث خطأ أثناء المعالجة: " + e.message);
+    } catch (e) {
+      alert("حدث خطأ أثناء المعالجة: " + (e instanceof Error ? e.message : "تعذر تعديل الرصيد"));
     }
-    
+
     setProcessing(false);
   };
 
-  const redeem=async(reward:any)=>{
-    if(processing||!scannedCustomer||!window.confirm(`تأكيد تسليم «${reward.conditions?.title||'المكافأة'}» وخصم ${reward.points_cost||0} نقطة و${reward.stamps_cost||0} ختم؟`)) return;
-    setProcessing(true);setScanError('');
-    const key=`${scannedCustomer.id}:${reward.id}`;
-    const storageKey=`loyalty-redemption:${store.id}:${key}`;
-    redemptionKeys.current[key] ||= sessionStorage.getItem(storageKey)||crypto.randomUUID();
-    sessionStorage.setItem(storageKey,redemptionKeys.current[key]);
+  const redeem = async (reward: LoyaltyReward) => {
+    if (
+      processing ||
+      !scannedCustomer ||
+      !window.confirm(
+        `تأكيد تسليم «${reward.conditions?.title || "المكافأة"}» وخصم ${reward.points_cost || 0} نقطة و${reward.stamps_cost || 0} ختم؟`,
+      )
+    )
+      return;
+    setProcessing(true);
+    setScanError("");
+    const key = `${scannedCustomer.id}:${reward.id}`;
+    const storageKey = `loyalty-redemption:${store.id}:${key}`;
+    redemptionKeys.current[key] ||= sessionStorage.getItem(storageKey) || crypto.randomUUID();
+    sessionStorage.setItem(storageKey, redemptionKeys.current[key]);
     try {
-      const {error}=await supabase.rpc('redeem_loyalty_reward',{p_store_id:store.id,p_customer_id:scannedCustomer.id,p_reward_id:reward.id,p_request_key:redemptionKeys.current[key]});
-      if(error) throw new Error('تعذر الاستبدال. تحقق من الرصيد وصلاحية المكافأة قبل المحاولة مجددًا.');
+      if (isMockMode) {
+        const demo = readDemoData();
+        const updated = redeemDemoLoyaltyReward(scannedCustomer, reward);
+        writeDemo(
+          "loyaltyCustomers",
+          demo.loyaltyCustomers.map((customer: LoyaltyCustomer) =>
+            customer.id === updated.id ? updated : customer,
+          ),
+        );
+        sessionStorage.removeItem(storageKey);
+        delete redemptionKeys.current[key];
+        setScannedCustomer(null);
+        setScanError("تم تسجيل تسليم المكافأة بنجاح.");
+        return;
+      }
+      const { error } = await supabase.rpc("redeem_loyalty_reward", {
+        p_store_id: store.id,
+        p_customer_id: scannedCustomer.id,
+        p_reward_id: reward.id,
+        p_request_key: redemptionKeys.current[key],
+      });
+      if (error)
+        throw new Error("تعذر الاستبدال. تحقق من الرصيد وصلاحية المكافأة قبل المحاولة مجددًا.");
       sessionStorage.removeItem(storageKey);
       delete redemptionKeys.current[key];
-      setScannedCustomer(null);setScanError('تم تسجيل تسليم المكافأة بنجاح.');
-    }catch(e){setScanError(e instanceof Error?e.message:'تعذر الاستبدال');}
-    finally{setProcessing(false);}
+      setScannedCustomer(null);
+      setScanError("تم تسجيل تسليم المكافأة بنجاح.");
+    } catch (e) {
+      setScanError(e instanceof Error ? e.message : "تعذر الاستبدال");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-4" dir="rtl">
       <div className="max-w-md mx-auto space-y-6 pt-4">
         <h1 className="text-2xl font-bold text-center">ماسح الولاء - {store.name}</h1>
-        
+
         {!scannedCustomer ? (
           <Card>
             <CardHeader>
               <CardTitle>مسح رمز العميل</CardTitle>
-              <CardDescription>قم بمسح رمز الـ QR الخاص بالعميل للتحقق من رصيده وإضافة أو خصم النقاط</CardDescription>
+              <CardDescription>
+                قم بمسح رمز الـ QR الخاص بالعميل للتحقق من رصيده وإضافة أو خصم النقاط
+              </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center">
               {scanning ? (
                 <div className="w-full aspect-square bg-black rounded-lg overflow-hidden relative">
                   <video id="video-preview" className="w-full h-full object-cover" />
                   <div className="absolute inset-0 border-2 border-primary/50 animate-pulse pointer-events-none m-8 rounded-xl" />
-                  <Button variant="destructive" className="absolute bottom-4 left-1/2 -translate-x-1/2" onClick={() => { controlsRef.current?.stop(); setScanning(false); }}>
+                  <Button
+                    variant="destructive"
+                    className="absolute bottom-4 left-1/2 -translate-x-1/2"
+                    onClick={() => {
+                      controlsRef.current?.stop();
+                      setScanning(false);
+                    }}
+                  >
                     إلغاء المسح
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-4 w-full">
-                  <Button size="lg" className="w-full h-32 flex flex-col gap-2" onClick={startScanning}>
+                  <Button
+                    size="lg"
+                    className="w-full h-32 flex flex-col gap-2"
+                    onClick={startScanning}
+                  >
                     <ScanLine className="w-10 h-10" />
                     <span>تشغيل الكاميرا والمسح</span>
                   </Button>
-                  
+
                   {scanError && (
                     <div className="bg-destructive/10 text-destructive p-3 rounded-md flex gap-2 items-center text-sm">
                       <AlertCircle className="w-4 h-4 shrink-0" />
                       {scanError}
                     </div>
                   )}
-                  
+
                   <div className="relative">
-                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-muted-foreground">أو أدخل بيانات يدوياً</span></div>
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-muted-foreground">
+                        أو أدخل بيانات يدوياً
+                      </span>
+                    </div>
                   </div>
-                  
+
                   <div className="flex gap-2">
-                    <Input placeholder="رقم جوال العميل" dir="ltr" value={phoneSearch} onChange={(e) => setPhoneSearch(e.target.value)} onKeyDown={(e) => e.key === "Enter" && findByPhone()} />
-                    <Button variant="outline" onClick={findByPhone}>بحث</Button>
+                    <Input
+                      placeholder="رقم جوال العميل"
+                      dir="ltr"
+                      value={phoneSearch}
+                      onChange={(e) => setPhoneSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && findByPhone()}
+                    />
+                    <Button variant="outline" onClick={findByPhone}>
+                      بحث
+                    </Button>
                   </div>
                 </div>
               )}
@@ -199,77 +392,114 @@ export default function StaffScannerPage({ storeSlug, kitchen = false }: { store
                 <div>
                   <CardTitle className="flex items-center gap-2">
                     <UserCheck className="w-5 h-5 text-primary" />
-                    {scannedCustomer.name || 'عضوية العميل'}
+                    {scannedCustomer.name || "عضوية العميل"}
                   </CardTitle>
                   <CardDescription className="mt-1">
-                    رقم العضوية: <span className="font-mono text-foreground">{scannedCustomer.membership_number}</span>
+                    رقم العضوية:{" "}
+                    <span className="font-mono text-foreground">
+                      {scannedCustomer.membership_number}
+                    </span>
                   </CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setScannedCustomer(null)}>مسح جديد</Button>
+                <Button variant="outline" size="sm" onClick={() => setScannedCustomer(null)}>
+                  مسح جديد
+                </Button>
               </div>
             </CardHeader>
             <CardContent className="pt-6 space-y-6">
-              <p dir="ltr" className="text-center">{scannedCustomer.contact_phone || scannedCustomer.phone}</p>
+              <p dir="ltr" className="text-center">
+                {scannedCustomer.contact_phone || scannedCustomer.phone}
+              </p>
               <div className="grid grid-cols-2 gap-4 text-center">
                 <div className="bg-slate-100 rounded-xl p-4">
                   <div className="text-sm text-muted-foreground mb-1">النقاط</div>
-                  <div className="text-3xl font-black text-primary">{scannedCustomer.points_balance}</div>
+                  <div className="text-3xl font-black text-primary">
+                    {scannedCustomer.points_balance}
+                  </div>
                 </div>
                 <div className="bg-slate-100 rounded-xl p-4">
                   <div className="text-sm text-muted-foreground mb-1">الأختام</div>
-                  <div className="text-3xl font-black text-primary">{scannedCustomer.stamps_balance}</div>
+                  <div className="text-3xl font-black text-primary">
+                    {scannedCustomer.stamps_balance}
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-3"><h3 className="font-bold">تسليم مكافأة</h3>{rewards.map(r=><Button key={r.id} className="w-full" variant="outline" disabled={processing||scannedCustomer.points_balance<(r.points_cost||0)||scannedCustomer.stamps_balance<(r.stamps_cost||0)} onClick={()=>redeem(r)}>{r.conditions?.title||'مكافأة'} — {r.points_cost||0} نقطة + {r.stamps_cost||0} ختم</Button>)}{!rewards.length&&<p>لا توجد مكافآت نشطة.</p>}{scanError&&<p role="status">{scanError}</p>}</div>
-              {manualAllowed && <div className="space-y-4">
-                <h3 className="font-semibold text-sm">تعديل الرصيد يدوياً</h3>
-                <div className="flex gap-2">
-                  <Input 
-                    type="number" 
-                    value={adjustmentAmount || ""} 
-                    onChange={(e) => setAdjustmentAmount(parseInt(e.target.value) || 0)}
-                    min={0}
-                    className="text-center font-bold text-lg"
+              <div className="space-y-3">
+                <h3 className="font-bold">تسليم مكافأة</h3>
+                {rewards.map((r) => (
+                  <Button
+                    key={r.id}
+                    className="w-full"
+                    variant="outline"
+                    disabled={
+                      processing ||
+                      scannedCustomer.points_balance < (r.points_cost || 0) ||
+                      scannedCustomer.stamps_balance < (r.stamps_cost || 0)
+                    }
+                    onClick={() => redeem(r)}
+                  >
+                    {r.conditions?.title || "مكافأة"} — {r.points_cost || 0} نقطة +{" "}
+                    {r.stamps_cost || 0} ختم
+                  </Button>
+                ))}
+                {!rewards.length && <p>لا توجد مكافآت نشطة.</p>}
+                {scanError && <p role="status">{scanError}</p>}
+              </div>
+              {manualAllowed && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-sm">تعديل الرصيد يدوياً</h3>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      value={adjustmentAmount || ""}
+                      onChange={(e) => setAdjustmentAmount(parseInt(e.target.value) || 0)}
+                      min={0}
+                      className="text-center font-bold text-lg"
+                    />
+                  </div>
+                  <Input
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    placeholder="سبب العملية (إجباري)"
                   />
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      variant="outline"
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      onClick={() => handleAdjustment("add", "points")}
+                      disabled={processing || !adjustmentAmount}
+                    >
+                      <Plus className="w-4 h-4 ml-1" /> إضافة نقاط
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => handleAdjustment("deduct", "points")}
+                      disabled={processing || !adjustmentAmount}
+                    >
+                      <Minus className="w-4 h-4 ml-1" /> خصم نقاط
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-green-600 border-green-200 hover:bg-green-50"
+                      onClick={() => handleAdjustment("add", "stamps")}
+                      disabled={processing || !adjustmentAmount}
+                    >
+                      <Plus className="w-4 h-4 ml-1" /> إضافة أختام
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="text-red-600 border-red-200 hover:bg-red-50"
+                      onClick={() => handleAdjustment("deduct", "stamps")}
+                      disabled={processing || !adjustmentAmount}
+                    >
+                      <Minus className="w-4 h-4 ml-1" /> خصم أختام
+                    </Button>
+                  </div>
                 </div>
-                <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="سبب العملية (إجباري)" />
-                
-                <div className="grid grid-cols-2 gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="text-green-600 border-green-200 hover:bg-green-50" 
-                    onClick={() => handleAdjustment("add", "points")}
-                    disabled={processing || !adjustmentAmount}
-                  >
-                    <Plus className="w-4 h-4 ml-1" /> إضافة نقاط
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => handleAdjustment("deduct", "points")}
-                    disabled={processing || !adjustmentAmount}
-                  >
-                    <Minus className="w-4 h-4 ml-1" /> خصم نقاط
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="text-green-600 border-green-200 hover:bg-green-50" 
-                    onClick={() => handleAdjustment("add", "stamps")}
-                    disabled={processing || !adjustmentAmount}
-                  >
-                    <Plus className="w-4 h-4 ml-1" /> إضافة أختام
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    className="text-red-600 border-red-200 hover:bg-red-50"
-                    onClick={() => handleAdjustment("deduct", "stamps")}
-                    disabled={processing || !adjustmentAmount}
-                  >
-                    <Minus className="w-4 h-4 ml-1" /> خصم أختام
-                  </Button>
-                </div>
-              </div>}
+              )}
             </CardContent>
           </Card>
         )}

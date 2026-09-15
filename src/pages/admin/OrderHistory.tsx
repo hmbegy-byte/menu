@@ -1,11 +1,19 @@
 import React, { useState } from "react";
 import { Search, Filter, Phone, User, Calendar, FileText, X, MapPin } from "lucide-react";
+import type { KitchenOrder } from "../../lib/orderTypes";
+type HistoryOrder = KitchenOrder & { customer_address?: string | null };
 
-export default function OrderHistory({ store, orders }) {
+export default function OrderHistory({
+  store,
+  orders,
+}: {
+  store: { currency: string };
+  orders: HistoryOrder[];
+}) {
   const [filterStatus, setFilterStatus] = useState("all");
   const [searchPhone, setSearchPhone] = useState("");
   const [filterDate, setFilterDate] = useState("");
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder] = useState<HistoryOrder | null>(null);
 
   const filteredOrders = orders.filter((order) => {
     let match = true;
@@ -15,7 +23,7 @@ export default function OrderHistory({ store, orders }) {
     return match;
   });
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case "pending":
         return (
@@ -30,6 +38,12 @@ export default function OrderHistory({ store, orders }) {
           </span>
         );
       case "ready":
+        return (
+          <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">
+            جاهز
+          </span>
+        );
+      case "completed":
         return (
           <span className="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-bold">
             مكتمل
@@ -105,7 +119,7 @@ export default function OrderHistory({ store, orders }) {
             <tbody className="divide-y divide-gray-100">
               {filteredOrders.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500">
+                  <td colSpan={6} className="p-8 text-center text-gray-500">
                     لا توجد طلبات مطابقة للبحث
                   </td>
                 </tr>

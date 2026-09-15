@@ -11,7 +11,13 @@ type Banner = {
 
 const AUTOPLAY_MS = 5000;
 
-export function OffersSlideshow({ banners = [], onOrder }: { banners?: Banner[]; onOrder?: (id?: string) => void }) {
+export function OffersSlideshow({
+  banners = [],
+  onOrder,
+}: {
+  banners?: Banner[];
+  onOrder?: (id?: string) => void;
+}) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
@@ -103,7 +109,15 @@ export function OffersSlideshow({ banners = [], onOrder }: { banners?: Banner[];
                     {banner.title}
                   </h2>
                   <p className="truncate text-xs text-gray-200">{banner.subtitle}</p>
-                  {onOrder && <button type="button" onClick={() => onOrder(banner.product_id)} className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">{banner.product_id ? 'اطلب الآن' : 'تصفح الأصناف'}</button>}
+                  {onOrder && (
+                    <button
+                      type="button"
+                      onClick={() => onOrder(banner.product_id)}
+                      className="mt-2 rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground"
+                    >
+                      {banner.product_id ? "اطلب الآن" : "تصفح الأصناف"}
+                    </button>
+                  )}
                 </div>
               </div>
             </article>

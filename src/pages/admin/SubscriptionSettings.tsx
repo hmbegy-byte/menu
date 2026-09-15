@@ -1,7 +1,15 @@
 import { Check, Crown } from "lucide-react";
-import { FEATURE_LABELS } from "../../lib/plans";
+import { FEATURE_LABELS, resolvePlan } from "../../lib/plans";
+import { subscriptionStatus } from "../../lib/subscriptionStatus";
 
-export default function SubscriptionSettings({ adminData }) {
+export default function SubscriptionSettings({
+  adminData,
+}: {
+  adminData: {
+    plan: ReturnType<typeof resolvePlan>;
+    subscription: Parameters<typeof subscriptionStatus>[0];
+  };
+}) {
   const { plan, subscription } = adminData;
   return (
     <div className="space-y-6">
@@ -20,12 +28,12 @@ export default function SubscriptionSettings({ adminData }) {
             <p className="mt-3 font-bold text-purple-700">{plan.monthlyPrice} ر.س شهريًا</p>
           </div>
           <span className="rounded-full bg-green-100 px-3 py-1 font-bold text-green-700">
-            {subscription?.status === "active" ? "نشط" : "تجريبي"}
+            {subscriptionStatus(subscription)}
           </span>
         </div>
         {subscription?.current_period_end && (
           <p className="mt-4 text-sm text-gray-600">
-            التجديد القادم: {subscription.current_period_end}
+            نهاية الفترة الحالية (التجديد يدوي): {subscription.current_period_end}
           </p>
         )}
       </section>
@@ -33,11 +41,14 @@ export default function SubscriptionSettings({ adminData }) {
         <section className="rounded-2xl border bg-white p-5">
           <h3 className="mb-3 font-bold">الميزات</h3>
           <div className="space-y-2">
-            {plan.features.map((feature) => (
-              <p key={feature} className="flex items-center gap-2 text-sm">
-                <Check size={16} className="text-green-600" /> {FEATURE_LABELS[feature] || feature}
-              </p>
-            ))}
+            {plan.features
+              .filter((feature) => !["online_payment", "integrations"].includes(feature))
+              .map((feature) => (
+                <p key={feature} className="flex items-center gap-2 text-sm">
+                  <Check size={16} className="text-green-600" />{" "}
+                  {FEATURE_LABELS[feature] || feature}
+                </p>
+              ))}
           </div>
         </section>
         <section className="rounded-2xl border bg-white p-5">

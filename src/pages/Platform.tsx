@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import {
   Building2,
@@ -13,7 +13,10 @@ import { usePlatformData } from "../hooks/usePlatformData";
 import { hasPlatformAccess, signInPlatform, signOutStore } from "../lib/access";
 import { PLAN_CATALOG, resolvePlan } from "../lib/plans";
 import { isMockMode } from "../lib/supabase";
-import PlatformStaffAccounts from '../components/PlatformStaffAccounts';
+import PlatformStaffAccounts from "../components/PlatformStaffAccounts";
+import SubscriptionCollection from "../components/SubscriptionCollection";
+import SupportTickets from "../components/SupportTickets";
+import { subscriptionStatus } from "../lib/subscriptionStatus";
 
 export default function Platform() {
   return (
@@ -112,11 +115,11 @@ function PlatformClient() {
   );
 }
 
-function CenteredMessage({ children }) {
+function CenteredMessage({ children }: { children: ReactNode }) {
   return <div className="grid min-h-screen place-items-center bg-gray-50">{children}</div>;
 }
 
-function PlatformDashboard({ onLogout }) {
+function PlatformDashboard({ onLogout }: { onLogout: () => Promise<void> }) {
   const data = usePlatformData(true);
   if (data.loading) return <CenteredMessage>جارٍ تحميل المنصة…</CenteredMessage>;
   if (data.error) return <CenteredMessage>{data.error}</CenteredMessage>;
@@ -164,6 +167,7 @@ function PlatformDashboard({ onLogout }) {
           ))}
         </div>
         <NewOrganizationForm data={data} />
+        {!isMockMode && <SupportTickets />}
         {!isMockMode && <PlatformStaffAccounts stores={data.stores} />}
         <section className="overflow-hidden rounded-2xl border bg-white">
           <div className="border-b p-5">
@@ -193,7 +197,7 @@ function PlatformDashboard({ onLogout }) {
   );
 }
 
-function NewOrganizationForm({ data }) {
+function NewOrganizationForm({ data }: { data: ReturnType<typeof usePlatformData> }) {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [form, setForm] = useState({
@@ -224,7 +228,9 @@ function NewOrganizationForm({ data }) {
         setMessage("");
         try {
           await data.createOrganization(form);
-          setMessage("تم إنشاء المطعم والفرع والاشتراك ودعوة المالك.");
+          setMessage(
+            "تم إنشاء المطعم والفرع والاشتراك التجريبي. أكمل إعداد حساب المالك من إدارة الحسابات؛ لم يتم إرسال بريد تلقائي.",
+          );
           setForm({
             name: "",
             legal_name: "",
@@ -309,7 +315,19 @@ function NewOrganizationForm({ data }) {
   );
 }
 
-function PlatformField({ label, value, onChange, type = "text", dir }) {
+function PlatformField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  dir,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  type?: string;
+  dir?: string;
+}) {
   return (
     <label className="text-sm font-bold">
       {label}
@@ -325,7 +343,13 @@ function PlatformField({ label, value, onChange, type = "text", dir }) {
   );
 }
 
-function OrganizationRow({ organization, data }) {
+function OrganizationRow({
+  organization,
+  data,
+}: {
+  organization: { id: string; name: string; owner_email: string };
+  data: ReturnType<typeof usePlatformData>;
+}) {
   const stores = data.stores.filter((store) => store.organization_id === organization.id);
   const subscription = data.subscriptions.find((item) => item.organization_id === organization.id);
   const plan = resolvePlan(subscription?.plans?.code || subscription?.plan_id);
@@ -356,11 +380,15 @@ function OrganizationRow({ organization, data }) {
         <span
           className={`rounded-full px-2 py-1 text-xs font-bold ${active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
         >
-          {active ? "نشط" : "متوقف"}
+          {subscriptionStatus(subscription)}
         </span>
+        <p className="mt-2 text-xs">النهاية: {subscription?.current_period_end || "غير محددة"}</p>
       </td>
       <td className="p-4">
         <div className="flex flex-wrap gap-2">
+          {!isMockMode && (
+            <SubscriptionCollection organizationId={organization.id} onSaved={data.reload} />
+          )}
           {stores.map((store) => (
             <div key={store.id} className="flex items-center gap-1">
               <a

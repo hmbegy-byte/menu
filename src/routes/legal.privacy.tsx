@@ -58,7 +58,7 @@ function PrivacyPage() {
   );
 }
 
-function LegalPage({ title, children }) {
+function LegalPage({ title, children }: { title: string; children: import("react").ReactNode }) {
   return (
     <main dir="rtl" className="min-h-screen bg-background p-4 text-foreground">
       <article className="mx-auto my-12 max-w-3xl space-y-5 rounded-3xl border bg-card p-6 shadow-sm md:p-10">

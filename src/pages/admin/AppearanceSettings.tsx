@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { useUnsavedForm } from '../../hooks/useUnsavedForm';
-import { brandText } from '../../lib/brandContrast.mjs';
+import type { AdminViewData } from "../../lib/adminViewTypes";
+import { useUnsavedForm } from "../../hooks/useUnsavedForm";
+import { brandText } from "../../lib/brandContrast.mjs";
 import { Palette, Check, Store, Image as ImageIcon } from "lucide-react";
 
 const colorOptions = [
@@ -14,7 +15,7 @@ const colorOptions = [
   { id: "yellow", name: "أصفر", value: "#ca8a04" },
 ];
 
-export default function AppearanceSettings({ adminData }) {
+export default function AppearanceSettings({ adminData }: { adminData: AdminViewData }) {
   const { appearance, store, updateStore, saveStoreSection } = adminData;
   const [formData, setFormData] = useState({
     primaryColor: appearance.primaryColor || "#9333ea",
@@ -24,10 +25,10 @@ export default function AppearanceSettings({ adminData }) {
   });
 
   const [isSaving, setIsSaving] = useState(false);
-  const {dirty,markSaved}=useUnsavedForm(formData);
-  const [message,setMessage]=useState('');
+  const { dirty, markSaved } = useUnsavedForm(formData);
+  const [message, setMessage] = useState("");
 
-  const saveToLocal = async (e) => {
+  const saveToLocal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSaving(true);
     try {
@@ -42,9 +43,9 @@ export default function AppearanceSettings({ adminData }) {
       // Update CSS variables on the document root so the admin panel also reflects it
       markSaved();
 
-      setMessage('تم حفظ المظهر بنجاح');
+      setMessage("تم حفظ المظهر بنجاح");
     } catch (err) {
-      setMessage('تعذر حفظ المظهر؛ أعد المحاولة.');
+      setMessage("تعذر حفظ المظهر؛ أعد المحاولة.");
     } finally {
       setIsSaving(false);
     }
@@ -52,8 +53,13 @@ export default function AppearanceSettings({ adminData }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <p role="status">{dirty?'تعديلات غير محفوظة':message}</p>
-      <div className="rounded-xl p-4" style={{backgroundColor:formData.primaryColor,color:brandText(formData.primaryColor)}}>معاينة لون الزر — يُختار لون النص تلقائيًا لضمان التباين</div>
+      <p role="status">{dirty ? "تعديلات غير محفوظة" : message}</p>
+      <div
+        className="rounded-xl p-4"
+        style={{ backgroundColor: formData.primaryColor, color: brandText(formData.primaryColor) }}
+      >
+        معاينة لون الزر — يُختار لون النص تلقائيًا لضمان التباين
+      </div>
       <div>
         <h2 className="text-2xl font-bold text-gray-900">المظهر والألوان</h2>
         <p className="text-gray-500 mt-1">تخصيص ألوان المتجر ليتناسب مع هويتك التجارية.</p>
@@ -70,7 +76,9 @@ export default function AppearanceSettings({ adminData }) {
           </label>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {colorOptions.map((color) => (
-              <button type="button" aria-pressed={formData.primaryColor===color.value}
+              <button
+                type="button"
+                aria-pressed={formData.primaryColor === color.value}
                 key={color.id}
                 onClick={() => setFormData({ ...formData, primaryColor: color.value })}
                 className={`relative flex items-center justify-center p-4 rounded-xl border-2 cursor-pointer transition-all ${

@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { signInToStore } from "../lib/access";
 import { isMockMode } from "../lib/supabase";
-import StaffPasswordSetup from '../components/StaffPasswordSetup';
+import StaffPasswordSetup from "../components/StaffPasswordSetup";
 
-export default function AdminGate({ storeSlug = "", onSuccess }: {storeSlug?: string; onSuccess?: () => void}) {
+export default function AdminGate({
+  storeSlug = "",
+  onSuccess,
+}: {
+  storeSlug?: string;
+  onSuccess?: () => void;
+}) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     slug: storeSlug || (isMockMode ? "demo" : ""),
@@ -15,13 +21,19 @@ export default function AdminGate({ storeSlug = "", onSuccess }: {storeSlug?: st
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [needsPassword, setNeedsPassword] = useState(false);
-  const submit = async (e) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const result = await signInToStore(form.slug.trim(), form.email.trim(), form.password, ["admin"]);
-      if ('needsPasswordChange' in result && result.needsPasswordChange) {setForm({...form,password:''}); setNeedsPassword(true); return;}
+      const result = await signInToStore(form.slug.trim(), form.email.trim(), form.password, [
+        "admin",
+      ]);
+      if ("needsPasswordChange" in result && result.needsPasswordChange) {
+        setForm({ ...form, password: "" });
+        setNeedsPassword(true);
+        return;
+      }
       if (onSuccess) onSuccess();
       else navigate({ to: `/admin/${form.slug.trim()}` });
     } catch (err) {
@@ -30,7 +42,7 @@ export default function AdminGate({ storeSlug = "", onSuccess }: {storeSlug?: st
       setLoading(false);
     }
   };
-  if (needsPassword) return <StaffPasswordSetup onDone={() => setNeedsPassword(false)}/>;
+  if (needsPassword) return <StaffPasswordSetup onDone={() => setNeedsPassword(false)} />;
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
       <div className="bg-white p-8 rounded-2xl shadow-sm border max-w-md w-full space-y-6">
@@ -38,7 +50,9 @@ export default function AdminGate({ storeSlug = "", onSuccess }: {storeSlug?: st
           <Settings className="mx-auto text-purple-600" size={42} />
           <h1 className="mt-3 text-2xl font-bold">دخول الإدارة</h1>
           <p className="mt-1 text-sm text-gray-500">استخدم حسابًا مصرحًا له بإدارة المطعم</p>
-          <p className="mt-2 text-sm text-gray-500">تُقفل الإدارة بعد 15 دقيقة خمول. احفظ تعديلاتك قبل ترك الجهاز. شاشة المطبخ لا تتأثر.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            تُقفل الإدارة بعد 15 دقيقة خمول. احفظ تعديلاتك قبل ترك الجهاز. شاشة المطبخ لا تتأثر.
+          </p>
         </div>
         <form onSubmit={submit} className="space-y-4">
           <input

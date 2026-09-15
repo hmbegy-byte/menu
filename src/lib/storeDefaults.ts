@@ -9,8 +9,7 @@ export const defaultStore = {
   phone_whatsapp: "+966500000000",
   currency: "SAR",
   is_active: true,
-  cover_url:
-    "https://images.unsplash.com/photo-1559286699-2321287c8005?q=80&w=1200&auto=format&fit=crop",
+  cover_url: "/demo-seafood-cover.svg",
   logo_url: "",
   social_links: {},
   working_hours: [],
@@ -39,6 +38,16 @@ export const defaultStore = {
       },
     ],
     whatsappMessageTemplate: "",
+    curbsideEnabled: false,
+    googleReviewEnabled: false,
+    googleReviewUrl: "",
+    orderBoardEnabled: false,
+    expensesEnabled: false,
+    inventoryEnabled: false,
+    profitabilityEnabled: false,
+    defaultPaymentFee: 0,
+    defaultDeliveryFulfillmentCost: 0,
+    defaultCommissionPercent: 0,
   },
   payment: {
     currency: "SAR",
@@ -118,6 +127,7 @@ export const defaultProducts = [
     name: "سمك مشوي",
     price: 55,
     description: "سمك طازج مشوي حسب الطلب",
+    image_url: "/demo-grilled-fish.svg",
     is_available: true,
     options: [],
   },
@@ -127,6 +137,7 @@ export const defaultProducts = [
     name: "جمبري مقلي",
     price: 70,
     description: "جمبري مقرمش مع الصوص",
+    image_url: "/demo-shrimp.svg",
     is_available: true,
     options: [],
   },
@@ -151,6 +162,45 @@ export const defaultSubscriptionAddons = [
 ];
 export const defaultPaymentTransactions = [];
 export const defaultIncidents = [];
+export const defaultLoyaltyProgram = {
+  id: "demo-loyalty-program",
+  organization_id: defaultOrganization.id,
+  is_active: true,
+  program_type: "hybrid",
+  points_name: "نقاط",
+  stamps_name: "أختام",
+  min_order_amount: 25,
+  allow_staff_adjustments: true,
+};
+export const defaultLoyaltyRules = [
+  {
+    id: "demo-loyalty-rule",
+    organization_id: defaultOrganization.id,
+    is_active: true,
+    rule_type: "points_per_currency",
+    currency_type: "points",
+    reward_value: 1,
+    min_amount: 25,
+    conditions: { title: "نقطة لكل ريال" },
+    valid_from: null,
+    valid_until: null,
+  },
+];
+export const defaultLoyaltyRewards = [
+  {
+    id: "demo-loyalty-reward",
+    organization_id: defaultOrganization.id,
+    is_active: true,
+    reward_type: "free_item",
+    reward_value: 1,
+    points_cost: 100,
+    stamps_cost: 0,
+    conditions: { title: "سمك مشوي مجاني", product_id: "p1" },
+    valid_from: null,
+    valid_until: null,
+  },
+];
+export const defaultLoyaltyCustomers = [];
 
 export const demoStorageKeys = {
   store: "demo_store",
@@ -174,6 +224,10 @@ export const demoStorageKeys = {
   platformOrganizations: "demo_platform_organizations",
   platformSubscriptions: "demo_platform_subscriptions",
   platformStores: "demo_platform_stores",
+  loyaltyProgram: "demo_loyalty_program",
+  loyaltyRules: "demo_loyalty_rules",
+  loyaltyRewards: "demo_loyalty_rewards",
+  loyaltyCustomers: "demo_loyalty_customers",
 };
 
 export function readDemoData() {
@@ -207,6 +261,10 @@ export function readDemoData() {
     platformOrganizations: read(demoStorageKeys.platformOrganizations, [defaultOrganization]),
     platformSubscriptions: read(demoStorageKeys.platformSubscriptions, [defaultSubscription]),
     platformStores: read(demoStorageKeys.platformStores, defaultBranches),
+    loyaltyProgram: read(demoStorageKeys.loyaltyProgram, defaultLoyaltyProgram),
+    loyaltyRules: read(demoStorageKeys.loyaltyRules, defaultLoyaltyRules),
+    loyaltyRewards: read(demoStorageKeys.loyaltyRewards, defaultLoyaltyRewards),
+    loyaltyCustomers: read(demoStorageKeys.loyaltyCustomers, defaultLoyaltyCustomers),
   };
 }
 

@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import type { AdminViewData } from "../../lib/adminViewTypes";
+import type { LucideIcon } from "lucide-react";
 import { DatabaseBackup, Download, FileSpreadsheet, HardDrive, Upload } from "lucide-react";
 import { isMockMode } from "../../lib/supabase";
 import { demoStorageKeys, writeDemo } from "../../lib/storeDefaults";
@@ -57,7 +59,7 @@ function parseCsv(text: string) {
   return rows;
 }
 
-export default function DataTools({ adminData }) {
+export default function DataTools({ adminData }: { adminData: AdminViewData }) {
   const [message, setMessage] = useState("");
   const backupInput = useRef<HTMLInputElement>(null);
   const menuInput = useRef<HTMLInputElement>(null);
@@ -128,6 +130,7 @@ export default function DataTools({ adminData }) {
     try {
       const rows = parseCsv(await file.text());
       const [headers, ...values] = rows;
+      if (!headers) throw new Error("ملف الاستيراد فارغ");
       const normalized = headers.map((header) => header.trim().toLowerCase());
       const indexOf = (...names: string[]) =>
         normalized.findIndex((header) => names.includes(header));
@@ -228,7 +231,21 @@ export default function DataTools({ adminData }) {
   );
 }
 
-function ActionCard({ icon: Icon, title, description, button, onClick, disabled = false }) {
+function ActionCard({
+  icon: Icon,
+  title,
+  description,
+  button,
+  onClick,
+  disabled = false,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  button: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
       <Icon className="mb-3 text-purple-600" size={28} />

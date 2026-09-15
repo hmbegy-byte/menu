@@ -4,6 +4,7 @@ import { hasStoreAccess } from "../lib/access";
 import { isMockMode, supabase } from "../lib/supabase";
 import { readDemoData, writeDemo } from "../lib/storeDefaults";
 import { resolvePlan } from "../lib/plans";
+import { subscriptionEligible } from "../lib/subscriptionEligibility.mjs";
 
 const tables = {
   categories: "categories",
@@ -36,121 +37,137 @@ export function useAdminData(storeSlug: string) {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    setError(null);
-    try {
-      if (!(await hasStoreAccess(storeSlug, ["admin"]))) throw new Error("AUTH_REQUIRED");
-      if (isMockMode) {
-        setState(readDemoData());
-        return;
-      }
-      const { data: store, error: storeError } = await supabase
-        .from("stores")
-        .select("*")
-        .eq("slug", storeSlug)
-        .maybeSingle();
-      if (storeError) throw storeError;
-      if (!store) throw new Error("المطعم غير موجود");
-      const results = await Promise.all([
-        supabase.from("categories").select("*").eq("store_id", store.id).order("display_order"),
-        supabase
-          .from("products")
-          .select("*")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("offers")
-          .select("*")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("addons")
-          .select("*")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("banners").select("*").eq("store_id", store.id).order("display_order"),
-        supabase
-          .from("orders")
-          .select("*, order_items(*)")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false }),
-        supabase.from("organizations").select("*").eq("id", store.organization_id).maybeSingle(),
-        supabase
-          .from("subscriptions")
-          .select("*, plans(*)")
-          .eq("organization_id", store.organization_id)
-          .maybeSingle(),
-        supabase
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      setError(null);
+      try {
+        if (!(await hasStoreAccess(storeSlug, ["admin"]))) throw new Error("AUTH_REQUIRED");
+        if (isMockMode) {
+          setState(readDemoData());
+          return;
+        }
+        const { data: store, error: storeError } = await supabase
           .from("stores")
           .select("*")
-          .eq("organization_id", store.organization_id)
-          .order("created_at"),
-        supabase
-          .from("staff_invitations")
-          .select("*")
-          .eq("organization_id", store.organization_id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("billing_invoices")
-          .select("*")
-          .eq("organization_id", store.organization_id)
-          .order("issued_at", { ascending: false }),
-        supabase
-          .from("subscription_addons")
-          .select("*")
-          .eq("organization_id", store.organization_id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("payment_transactions")
-          .select("*")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false })
-          .limit(100),
-        supabase
-          .from("system_incidents")
-          .select("*")
-          .eq("store_id", store.id)
-          .order("created_at", { ascending: false })
-          .limit(100),
-      ]);
-      const failed = results.find((r) => r.error);
-      if (failed?.error) throw failed.error;
-      setState({
-        store,
-        categories: results[0].data || [],
-        products: results[1].data || [],
-        offers: results[2].data || [],
-        addons: results[3].data || [],
-        banners: results[4].data || [],
-        orders: results[5].data || [],
-        appearance: store.appearance || {},
-        settings: store.settings || {},
-        payment: store.payment || {},
-        organization: results[6].data,
-        subscription: results[7].data,
-        branches: results[8].data || [],
-        team: results[9].data || [],
-        invoices: results[10].data || [],
-        subscriptionAddons: results[11].data || [],
-        paymentTransactions: results[12].data || [],
-        incidents: results[13].data || [],
-      });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "تعذر تحميل لوحة الإدارة");
-    } finally {
-      setLoading(false);
-    }
-  }, [storeSlug]);
+          .eq("slug", storeSlug)
+          .maybeSingle();
+        if (storeError) throw storeError;
+        if (!store) throw new Error("المطعم غير موجود");
+        const results = await Promise.all([
+          supabase.from("categories").select("*").eq("store_id", store.id).order("display_order"),
+          supabase
+            .from("products")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("offers")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("addons")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false }),
+          supabase.from("banners").select("*").eq("store_id", store.id).order("display_order"),
+          supabase
+            .from("orders")
+            .select("*, order_items(*)")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false }),
+          supabase.from("organizations").select("*").eq("id", store.organization_id).maybeSingle(),
+          supabase
+            .from("subscriptions")
+            .select("*, plans(*)")
+            .eq("organization_id", store.organization_id)
+            .maybeSingle(),
+          supabase
+            .from("stores")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .order("created_at"),
+          supabase
+            .from("staff_invitations")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("billing_invoices")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .order("issued_at", { ascending: false }),
+          supabase
+            .from("subscription_addons")
+            .select("*")
+            .eq("organization_id", store.organization_id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("payment_transactions")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false })
+            .limit(100),
+          supabase
+            .from("system_incidents")
+            .select("*")
+            .eq("store_id", store.id)
+            .order("created_at", { ascending: false })
+            .limit(100),
+        ]);
+        const failed = results.find((r) => r.error);
+        if (failed?.error) throw failed.error;
+        let subscription = results[7].data;
+        if (!subscription) {
+          const summary = await supabase.rpc("store_subscription_summary", { p_store: store.id });
+          if (summary.error)
+            throw new Error(
+              "تعذر قراءة باقة المطعم. يلزم تفعيل تحديث صلاحيات قراءة الاشتراك، وليس ترقية الحساب إلى مالك.",
+            );
+          subscription = summary.data;
+        }
+        setState({
+          store,
+          categories: results[0].data || [],
+          products: results[1].data || [],
+          offers: results[2].data || [],
+          addons: results[3].data || [],
+          banners: results[4].data || [],
+          orders: results[5].data || [],
+          appearance: store.appearance || {},
+          settings: store.settings || {},
+          payment: store.payment || {},
+          organization: results[6].data,
+          subscription,
+          branches: results[8].data || [],
+          team: results[9].data || [],
+          invoices: results[10].data || [],
+          subscriptionAddons: results[11].data || [],
+          paymentTransactions: results[12].data || [],
+          incidents: results[13].data || [],
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "تعذر تحميل لوحة الإدارة");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [storeSlug],
+  );
   useEffect(() => {
     load();
     const listener = () => {
       load(true);
     };
     window.addEventListener("storage", listener);
-    window.addEventListener('focus',listener);
-    const timer=window.setInterval(listener,60000);
-    return () => {window.removeEventListener("storage", listener);window.removeEventListener('focus',listener);window.clearInterval(timer);};
+    window.addEventListener("focus", listener);
+    const timer = window.setInterval(listener, 60000);
+    return () => {
+      window.removeEventListener("storage", listener);
+      window.removeEventListener("focus", listener);
+      window.clearInterval(timer);
+    };
   }, [load]);
   useEffect(() => {
     if (isMockMode || !state.store?.id) return;
@@ -175,7 +192,7 @@ export function useAdminData(storeSlug: string) {
     if (isMockMode) {
       const store = { ...state.store, ...updates };
       writeDemo("store", store);
-      const branches = (state.branches || []).map((branch) =>
+      const branches = (state.branches || []).map((branch: { id: string }) =>
         branch.id === store.id ? store : branch,
       );
       writeDemo("branches", branches);
@@ -183,7 +200,7 @@ export function useAdminData(storeSlug: string) {
         branch.id === store.id ? store : branch,
       );
       writeDemo("platformStores", platformStores);
-      setState((p) => ({ ...p, store, branches }));
+      setState((p: Record<string, unknown>) => ({ ...p, store, branches }));
       return true;
     }
     const { data, error: saveError } = await supabase
@@ -216,7 +233,7 @@ export function useAdminData(storeSlug: string) {
         if (domainError) throw domainError;
       }
     }
-    setState((p) => ({ ...p, store: data }));
+    setState((p: Record<string, unknown>) => ({ ...p, store: data }));
     return true;
   };
   const saveStoreSection = async (section: string, value: any) => {
@@ -231,11 +248,11 @@ export function useAdminData(storeSlug: string) {
     if (isMockMode) {
       const current = state[collection] || [];
       const saved = { ...entity, id: entity.id || `${collection}-${Date.now()}` };
-      const next = current.some((x) => x.id === saved.id)
-        ? current.map((x) => (x.id === saved.id ? saved : x))
+      const next = current.some((x: { id: string }) => x.id === saved.id)
+        ? current.map((x: { id: string }) => (x.id === saved.id ? saved : x))
         : [saved, ...current];
       writeDemo(collection, next);
-      setState((p) => ({ ...p, [collection]: next }));
+      setState((p: Record<string, unknown>) => ({ ...p, [collection]: next }));
       return saved;
     }
     const payload = { ...entity, store_id: state.store.id };
@@ -250,11 +267,11 @@ export function useAdminData(storeSlug: string) {
     return data;
   };
   const deleteEntity = async (collection: keyof typeof tables, id: string) => {
-    if (!window.confirm('هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن الحذف من هذه الشاشة.')) return;
+    if (!window.confirm("هل تريد حذف هذا العنصر؟ لا يمكن التراجع عن الحذف من هذه الشاشة.")) return;
     if (isMockMode) {
-      const next = (state[collection] || []).filter((x) => x.id !== id);
+      const next = (state[collection] || []).filter((x: { id: string }) => x.id !== id);
       writeDemo(collection, next);
-      setState((p) => ({ ...p, [collection]: next }));
+      setState((p: Record<string, unknown>) => ({ ...p, [collection]: next }));
       return;
     }
     const { error: deleteError } = await supabase
@@ -370,14 +387,18 @@ export function useAdminData(storeSlug: string) {
       return saved;
     }
     delete saved.id;
-    const { data, error: inviteError } = await supabase.rpc('create_staff_invitation', {p_store_id:saved.store_id,p_email:saved.email,p_role:saved.role});
+    const { data, error: inviteError } = await supabase.rpc("create_staff_invitation", {
+      p_store_id: saved.store_id,
+      p_email: saved.email,
+      p_role: saved.role,
+    });
     if (inviteError) {
-      const detail = inviteError.message || '';
+      const detail = inviteError.message || "";
       const message = /Not authorized|permission denied/i.test(detail)
-        ? 'حسابك لا يملك صلاحية دعوة موظف لهذا الفرع.'
+        ? "حسابك لا يملك صلاحية دعوة موظف لهذا الفرع."
         : /Invalid invitation/i.test(detail)
-          ? 'راجع البريد الإلكتروني والدور المحدد.'
-          : `تعذر إنشاء الدعوة (${inviteError.code || 'NETWORK'}): ${detail || 'تحقق من الاتصال وأعد المحاولة.'}`;
+          ? "راجع البريد الإلكتروني والدور المحدد."
+          : `تعذر إنشاء الدعوة (${inviteError.code || "NETWORK"}): ${detail || "تحقق من الاتصال وأعد المحاولة."}`;
       throw new Error(message);
     }
     await load(true);
@@ -390,11 +411,7 @@ export function useAdminData(storeSlug: string) {
       setState((current: any) => ({ ...current, team }));
       return;
     }
-    const { error: removeError } = await supabase
-      .from("staff_invitations")
-      .delete()
-      .eq("id", id)
-      .eq("organization_id", state.store.organization_id);
+    const { error: removeError } = await supabase.rpc("revoke_staff_invitation", { p_id: id });
     if (removeError) throw removeError;
     await load(true);
   };
@@ -462,7 +479,10 @@ export function useAdminData(storeSlug: string) {
     toggleSubscriptionAddon,
     resolveIncident,
     plan,
-    features: !isMockMode && !['active','trial'].includes(state.subscription?.status) ? [] : (state.subscription?.plans?.features || plan.features),
+    features:
+      !isMockMode && !subscriptionEligible(state.subscription)
+        ? []
+        : state.subscription?.plans?.features || plan.features,
     setCategories: setPart("categories"),
     setProducts: setPart("products"),
     setOffers: setPart("offers"),

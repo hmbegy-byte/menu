@@ -6,8 +6,33 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
+import SupportTickets from "../../components/SupportTickets";
+import { useEffect } from "react";
+import { supabase, isMockMode } from "../../lib/supabase";
+import { subscriptionStatus } from "../../lib/subscriptionStatus";
 
-export default function OperationalHealth({ adminData }) {
+export default function OperationalHealth({
+  adminData,
+}: {
+  adminData: {
+    store: { id: string };
+    incidents: Array<{
+      id: string;
+      title: string;
+      details?: string | null;
+      resolved_at?: string | null;
+    }>;
+    paymentTransactions: Array<{ status: string }>;
+    subscription?: Parameters<typeof subscriptionStatus>[0];
+    settings: { acceptingOrders?: boolean; pausedUntil?: string };
+    reload: () => Promise<void>;
+    resolveIncident: (id: string) => Promise<void>;
+  };
+}) {
+  useEffect(() => {
+    if (!isMockMode)
+      void supabase.rpc("refresh_subscription_incident", { p_store: adminData.store.id });
+  }, [adminData.store.id]);
   const unresolved = (adminData.incidents || []).filter((incident) => !incident.resolved_at);
   const failedPayments = (adminData.paymentTransactions || []).filter(
     (payment) => payment.status === "failed",
@@ -15,8 +40,8 @@ export default function OperationalHealth({ adminData }) {
   const checks = [
     {
       label: "اشتراك المطعم",
-      ok: ["trial", "active"].includes(adminData.subscription?.status),
-      detail: adminData.subscription?.status || "غير موجود",
+      ok: ["نشط", "تجريبي"].includes(subscriptionStatus(adminData.subscription)),
+      detail: subscriptionStatus(adminData.subscription),
     },
     {
       label: "استقبال الطلبات",
@@ -33,12 +58,13 @@ export default function OperationalHealth({ adminData }) {
     },
     {
       label: "مزود الدفع",
-      ok: !adminData.payment?.applePayEnabled || adminData.payment?.providerConnected,
-      detail: adminData.payment?.providerConnected ? "متصل" : "غير متصل",
+      ok: false,
+      detail: "الدفع الإلكتروني غير متاح؛ النقد والتحويل البنكي اليدوي هما النطاق الحالي",
     },
   ];
   return (
     <div className="space-y-6">
+      <SupportTickets storeId={adminData.store.id} />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-2xl font-bold">

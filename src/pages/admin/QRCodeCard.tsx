@@ -3,7 +3,11 @@ import { QRCodeSVG } from "qrcode.react";
 import html2canvas from "html2canvas";
 import { Download } from "lucide-react";
 
-export default function QRCodeCard({ store }) {
+export default function QRCodeCard({
+  store,
+}: {
+  store: { slug: string; name: string; logo_url?: string };
+}) {
   const qrRef = useRef(null);
   const storeUrl = `${window.location.origin}/s/${store.slug}`;
 

@@ -1,8 +1,15 @@
 import React from "react";
+import type { AdminViewData } from "../../lib/adminViewTypes";
 import { Banknote, ShoppingBag, Clock, PlusCircle, FileText, ArrowLeft } from "lucide-react";
 import OnboardingChecklist from "./OnboardingChecklist";
 
-export default function StoreSettings({ adminData, setActiveTab }) {
+export default function StoreSettings({
+  adminData,
+  setActiveTab,
+}: {
+  adminData: AdminViewData;
+  setActiveTab: (tab: string) => void;
+}) {
   const { store, orders } = adminData;
 
   // Calculate Metrics
@@ -10,7 +17,7 @@ export default function StoreSettings({ adminData, setActiveTab }) {
   const todayOrders = orders.filter(
     (o) => o.created_at.startsWith(today) && o.status !== "cancelled",
   );
-  const totalRevenue = todayOrders.reduce((sum, o) => sum + parseFloat(o.total_amount), 0);
+  const totalRevenue = todayOrders.reduce((sum, o) => sum + Number(o.total_amount), 0);
 
   const totalOrdersCount = orders.length;
   const pendingOrdersCount = orders.filter((o) => o.status === "pending").length;
@@ -23,11 +30,45 @@ export default function StoreSettings({ adminData, setActiveTab }) {
       </div>
 
       <section aria-label="التشغيل الحالي" className="grid gap-3 sm:grid-cols-3">
-        <button onClick={()=>setActiveTab('orders')} className="rounded-xl border bg-card p-5 text-start"><span className="block text-muted-foreground">الطلبات الحالية</span><strong className="text-2xl">{orders.filter(o=>['pending','preparing','ready','out_for_delivery'].includes(o.status)).length}</strong></button>
-        <button onClick={()=>setActiveTab('products')} className="rounded-xl border bg-card p-5 text-start"><span className="block text-muted-foreground">أصناف غير متاحة</span><strong className="text-2xl">{adminData.products.filter(p=>p.is_available===false).length}</strong></button>
-        <button onClick={()=>setActiveTab('settings')} className="rounded-xl border bg-card p-5 text-start"><span className="block text-muted-foreground">استقبال الطلبات اليدوي</span><strong>{adminData.settings?.acceptingOrders===false?'متوقف':'مفعّل'}</strong><span className="mt-1 block text-sm text-muted-foreground">تظل ساعات العمل والإيقاف المؤقت سارية</span></button>
+        <button
+          onClick={() => setActiveTab("orders")}
+          className="rounded-xl border bg-card p-5 text-start"
+        >
+          <span className="block text-muted-foreground">الطلبات الحالية</span>
+          <strong className="text-2xl">
+            {
+              orders.filter((o) =>
+                ["pending", "preparing", "ready", "out_for_delivery"].includes(o.status),
+              ).length
+            }
+          </strong>
+        </button>
+        <button
+          onClick={() => setActiveTab("products")}
+          className="rounded-xl border bg-card p-5 text-start"
+        >
+          <span className="block text-muted-foreground">أصناف غير متاحة</span>
+          <strong className="text-2xl">
+            {adminData.products.filter((p) => p.is_available === false).length}
+          </strong>
+        </button>
+        <button
+          onClick={() => setActiveTab("settings")}
+          className="rounded-xl border bg-card p-5 text-start"
+        >
+          <span className="block text-muted-foreground">استقبال الطلبات اليدوي</span>
+          <strong>{adminData.settings?.acceptingOrders === false ? "متوقف" : "مفعّل"}</strong>
+          <span className="mt-1 block text-sm text-muted-foreground">
+            تظل ساعات العمل والإيقاف المؤقت سارية
+          </span>
+        </button>
       </section>
-      <details className="rounded-xl border bg-card p-4"><summary className="cursor-pointer font-bold">تجهيز المطعم للإطلاق</summary><div className="pt-4"><OnboardingChecklist adminData={adminData} setActiveTab={setActiveTab} /></div></details>
+      <details className="rounded-xl border bg-card p-4">
+        <summary className="cursor-pointer font-bold">تجهيز المطعم للإطلاق</summary>
+        <div className="pt-4">
+          <OnboardingChecklist adminData={adminData} setActiveTab={setActiveTab} />
+        </div>
+      </details>
 
       {/* Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

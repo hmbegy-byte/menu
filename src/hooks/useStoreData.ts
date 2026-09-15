@@ -72,11 +72,7 @@ export function useStoreData(storeSlug: string) {
             .eq("store_id", store.id)
             .eq("is_active", true)
             .order("created_at"),
-          supabase
-            .from("brand_assets")
-            .select("*")
-            .eq("store_id", store.id)
-            .maybeSingle(),
+          supabase.from("brand_assets").select("*").eq("store_id", store.id).maybeSingle(),
         ]);
         const failed = results.find((r) => r.error);
         if (failed?.error) throw failed.error;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { Flame, MapPin, Plus, ShoppingBag, Store } from "lucide-react";
 
 import { CategoryPills } from "../components/menu/CategoryPills";
@@ -12,9 +12,24 @@ import { formatCurrency } from "../lib/currency";
 import { useStoreData } from "../hooks/useStoreData";
 import { BrandUpdater } from "../components/BrandUpdater";
 import { supabase } from "../lib/supabase";
-import { isOpenAt } from '../lib/workingHours.mjs';
-import { discountedPrice } from '../lib/offers.mjs';
-import { brandText } from '../lib/brandContrast.mjs';
+import { isOpenAt } from "../lib/workingHours.mjs";
+import { discountedPrice } from "../lib/offers.mjs";
+import { brandText } from "../lib/brandContrast.mjs";
+import { menuSelectionMode } from "../lib/menuSelection.mjs";
+import type {
+  CatalogProduct,
+  CatalogCategory,
+  CatalogChoice,
+  CatalogOption,
+} from "../lib/catalogTypes";
+type PublicProduct = Omit<CatalogProduct, "options"> & {
+  tag?: string;
+  options: Array<
+    Omit<CatalogOption, "choices"> & {
+      choices: Array<CatalogChoice & { label?: string; price?: number }>;
+    }
+  >;
+};
 
 export const Route = createFileRoute("/s/$store_slug")({
   head: () => ({
@@ -28,8 +43,29 @@ export const Route = createFileRoute("/s/$store_slug")({
 
 function MenuPage() {
   const { store_slug } = Route.useParams();
-  const { store, categories, products, offers, settings, payment, appearance, brand_assets, banners, loading, error } =
-    useStoreData(store_slug);
+  const {
+    store,
+    categories: loadedCategories,
+    products: loadedProducts,
+    offers: loadedOffers,
+    settings,
+    payment,
+    appearance,
+    brand_assets,
+    banners,
+    loading,
+    error,
+  } = useStoreData(store_slug);
+  const categories: CatalogCategory[] = loadedCategories;
+  const products: PublicProduct[] = loadedProducts;
+  const offers: Array<{
+    id: string;
+    title: string;
+    product_id?: string | null;
+    discount_percentage: number;
+    active: boolean;
+    image_url?: string;
+  }> = loadedOffers;
   const isWithinWorkingHours =
     !store?.working_hours?.length ||
     (() => {
@@ -40,11 +76,16 @@ function MenuPage() {
         minute: "2-digit",
         hourCycle: "h23",
       }).formatToParts(new Date());
-      const part = (type) => parts.find((entry) => entry.type === type)?.value;
+      const part = (type: Intl.DateTimeFormatPartTypes) =>
+        parts.find((entry) => entry.type === type)?.value;
       const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
         part("weekday") || "",
       );
-      return isOpenAt(store.working_hours, dayIndex, Number(part('hour')) * 60 + Number(part('minute')));
+      return isOpenAt(
+        store.working_hours,
+        dayIndex,
+        Number(part("hour")) * 60 + Number(part("minute")),
+      );
     })();
   const pauseEndsAt = settings?.pausedUntil ? new Date(settings.pausedUntil) : null;
   const isTemporarilyPaused = Boolean(pauseEndsAt && pauseEndsAt.getTime() > Date.now());
@@ -57,13 +98,14 @@ function MenuPage() {
   const [cartOpen, setCartOpen] = useState(false);
   const [lines, setLines] = useState<CartLine[]>([]);
   const [reorderNotice, setReorderNotice] = useState("");
-  const query = typeof window === "undefined" ? new URLSearchParams() : new URLSearchParams(window.location.search);
+  const search = useLocation({ select: (location) => location.searchStr });
+  const query = useMemo(() => new URLSearchParams(search), [search]);
   const attribution = { campaign: query.get("campaign"), source: query.get("source") };
 
   // Set initial active category when loaded
   useEffect(() => {
     if (categories.length > 0 && !categories.some((category) => category.id === activeCategory)) {
-      setActiveCategory(categories[0].id);
+      setActiveCategory(categories[0]?.id ?? null);
     }
   }, [categories, activeCategory]);
 
@@ -84,7 +126,9 @@ function MenuPage() {
         multiple: Boolean(opt.multiple),
         required: Boolean(opt.required),
         minSelections: Number(opt.min_selections ?? (opt.required ? 1 : 0)),
-        maxSelections: Number(opt.max_selections ?? (opt.multiple ? (opt.choices || []).length : 1)),
+        maxSelections: Number(
+          opt.max_selections ?? (opt.multiple ? (opt.choices || []).length : 1),
+        ),
         options: (opt.choices || []).map((c, j) => ({
           id: c.id ?? c.name ?? c.label ?? "",
           name: c.name || c.label || "",
@@ -99,7 +143,7 @@ function MenuPage() {
         name: p.name,
         description: p.description,
         price: discountedPrice(p, offers),
-        image: p.image_url || "https://images.unsplash.com/photo-1559286699-2321287c8005?w=800",
+        image: p.image_url || "/demo-grilled-fish.svg",
         tag: p.tag || "",
         groups: groups,
       };
@@ -110,31 +154,81 @@ function MenuPage() {
     const requestedProduct = query.get("product");
     if (requestedProduct) {
       const item = mappedProducts.find((product) => product.id === requestedProduct);
-      if (item) { setActiveCategory(item.category); setCustomizing(item); }
+      if (item) {
+        setActiveCategory(item.category);
+        setCustomizing(item);
+      }
     }
-  }, [mappedProducts]);
+  }, [mappedProducts, query]);
 
   useEffect(() => {
     const token = query.get("reorder") || query.get("usual");
     if (!token || !store?.id) return;
     const rpcName = query.get("usual") ? "usual_order_preview" : "reorder_preview";
-    const params = query.get("usual") ? { p_store_id: store.id, p_access_token: token } : { p_store_id: store.id, p_tracking_token: token };
+    const params = query.get("usual")
+      ? { p_store_id: store.id, p_access_token: token }
+      : { p_store_id: store.id, p_tracking_token: token };
     supabase.rpc(rpcName, params).then(({ data, error: previewError }) => {
       if (previewError || !data?.items) return setReorderNotice("تعذر استرجاع الطلب السابق.");
       const unavailable: string[] = [];
-      const rebuilt = data.items.flatMap((oldItem: any) => {
-        const current = mappedProducts.find((product) => product.id === oldItem.product_id);
-        if (!current || !oldItem.is_available) { unavailable.push(oldItem.name); return []; }
-        const selectedOptions = (oldItem.selected_options || []).filter((choice: any) => current.groups.some((group) => group.id === choice.group_id && group.options.some((option) => option.id === choice.choice_id && option.isAvailable !== false)));
-        const requiredMissing = current.groups.some((group) => (group.minSelections || 0) > selectedOptions.filter((choice:any) => choice.group_id===group.id).length);
-        if (requiredMissing) { unavailable.push(`${oldItem.name} (تغيّرت خياراته)`); return []; }
-        const optionPrice = current.groups.flatMap((group) => group.options).filter((option) => selectedOptions.some((choice:any) => choice.choice_id===option.id)).reduce((sum, option) => sum+option.price,0);
-        return [{ key: `${current.id}-${Date.now()}-${Math.random()}`, productId: current.id, name: current.name, image: current.image, quantity: oldItem.quantity, unitPrice: current.price+optionPrice, selectionLabels: selectedOptions.map((choice:any) => choice.name), selectedOptions }];
-      });
-      setLines(rebuilt); setCartOpen(rebuilt.length>0);
-      setReorderNotice(unavailable.length ? `لم نضف: ${unavailable.join("، ")}. راجع السلة والأسعار الحالية قبل التأكيد.` : "أعدنا بناء الطلب بالأسعار والتوفر الحاليين. راجعه قبل التأكيد.");
+      const rebuilt = data.items.flatMap(
+        (oldItem: {
+          product_id: string;
+          name: string;
+          is_available: boolean;
+          quantity: number;
+          selected_options?: NonNullable<CartLine["selectedOptions"]>;
+        }) => {
+          const current = mappedProducts.find((product) => product.id === oldItem.product_id);
+          if (!current || !oldItem.is_available) {
+            unavailable.push(oldItem.name);
+            return [];
+          }
+          const selectedOptions = (oldItem.selected_options || []).filter((choice) =>
+            current.groups.some(
+              (group) =>
+                group.id === choice.group_id &&
+                group.options.some(
+                  (option) => option.id === choice.choice_id && option.isAvailable !== false,
+                ),
+            ),
+          );
+          const requiredMissing = current.groups.some(
+            (group) =>
+              (group.minSelections || 0) >
+              selectedOptions.filter((choice) => choice.group_id === group.id).length,
+          );
+          if (requiredMissing) {
+            unavailable.push(`${oldItem.name} (تغيّرت خياراته)`);
+            return [];
+          }
+          const optionPrice = current.groups
+            .flatMap((group) => group.options)
+            .filter((option) => selectedOptions.some((choice) => choice.choice_id === option.id))
+            .reduce((sum, option) => sum + option.price, 0);
+          return [
+            {
+              key: `${current.id}-${Date.now()}-${Math.random()}`,
+              productId: current.id,
+              name: current.name,
+              image: current.image,
+              quantity: oldItem.quantity,
+              unitPrice: current.price + optionPrice,
+              selectionLabels: selectedOptions.map((choice) => choice.name),
+              selectedOptions,
+            },
+          ];
+        },
+      );
+      setLines(rebuilt);
+      setCartOpen(rebuilt.length > 0);
+      setReorderNotice(
+        unavailable.length
+          ? `لم نضف: ${unavailable.join("، ")}. راجع السلة والأسعار الحالية قبل التأكيد.`
+          : "أعدنا بناء الطلب بالأسعار والتوفر الحاليين. راجعه قبل التأكيد.",
+      );
     });
-  }, [store?.id, mappedProducts]);
+  }, [store?.id, mappedProducts, query]);
 
   const visibleItems = useMemo(
     () => mappedProducts.filter((item) => item.category === activeCategory),
@@ -143,6 +237,27 @@ function MenuPage() {
 
   const count = lines.reduce((sum, l) => sum + l.quantity, 0);
   const total = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+
+  const selectProduct = (item: MenuItem) => {
+    setActiveCategory(item.category);
+    if (menuSelectionMode(item) === "customize") {
+      setCustomizing(item);
+      return;
+    }
+    setLines((previous) => [
+      ...previous,
+      {
+        key: `${item.id}-${Date.now()}`,
+        productId: item.id,
+        name: item.name,
+        image: item.image,
+        quantity: 1,
+        unitPrice: item.price,
+        selectionLabels: [],
+        selectedOptions: [],
+      },
+    ]);
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">جاري التحميل...</div>;
@@ -160,24 +275,44 @@ function MenuPage() {
   return (
     <div
       className="storefront min-h-screen font-cairo transition-colors duration-300"
-      data-brand={store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor)) ? 'la-gaufres' : 'custom'}
-      style={{
-        "--theme-primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
-        "--primary": (store.slug === 'demo' && (!appearance?.primaryColor || ['#9333ea','#0284c7'].includes(appearance.primaryColor))) ? '#70452f' : appearance?.primaryColor || '#70452f',
-        "--primary-foreground": brandText((store.slug==='demo' && ['#9333ea','#0284c7'].includes(appearance?.primaryColor)) ? '#70452f' : appearance?.primaryColor || '#70452f'),
-      } as CSSProperties}
+      data-brand={
+        store.slug === "demo" &&
+        (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
+          ? "la-gaufres"
+          : "custom"
+      }
+      style={
+        {
+          "--theme-primary":
+            store.slug === "demo" &&
+            (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
+              ? "#70452f"
+              : appearance?.primaryColor || "#70452f",
+          "--primary":
+            store.slug === "demo" &&
+            (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
+              ? "#70452f"
+              : appearance?.primaryColor || "#70452f",
+          "--primary-foreground": brandText(
+            store.slug === "demo" && ["#9333ea", "#0284c7"].includes(appearance?.primaryColor)
+              ? "#70452f"
+              : appearance?.primaryColor || "#70452f",
+          ),
+        } as CSSProperties
+      }
     >
       <BrandUpdater assets={brand_assets || {}} isStore />
 
       <header className="relative h-52 overflow-hidden bg-surface-strong">
         <img
-          src={
-            store.cover_url ||
-            "https://images.unsplash.com/photo-1534422298391-e4f8c172dddb?q=80&w=1000"
-          }
+          src={store.cover_url || "/demo-seafood-cover.svg"}
           alt={store.name}
           width={1280}
           height={720}
+          onError={(event) => {
+            event.currentTarget.onerror = null;
+            event.currentTarget.src = "/demo-seafood-cover.svg";
+          }}
           className="h-full w-full object-cover"
         />
         <div className="fade-mask-bottom absolute inset-0 bg-black/30" />
@@ -201,12 +336,44 @@ function MenuPage() {
         </div>
       </header>
 
-      <OffersSlideshow banners={banners} onOrder={id => { const item = mappedProducts.find(p => p.id===id); if (item && isAcceptingOrders) { setActiveCategory(item.category); setCustomizing(item); } else document.getElementById('store-offers')?.scrollIntoView({behavior:'smooth'}); }} />
+      <OffersSlideshow
+        banners={banners}
+        onOrder={(id) => {
+          const item = mappedProducts.find((p) => p.id === id);
+          if (item && isAcceptingOrders) {
+            selectProduct(item);
+          } else document.getElementById("store-offers")?.scrollIntoView({ behavior: "smooth" });
+        }}
+      />
       <section id="store-offers" className="mx-4 mt-4 space-y-3" aria-label="العروض والخصومات">
-        {offers.filter(o => o.active).map(offer => <article key={offer.id} className="rounded-2xl border bg-surface p-4">
-          <h2 className="text-lg font-bold">{offer.title}</h2><p className="text-primary">خصم {offer.discount_percentage}% {offer.product_id ? 'على الصنف المحدد' : 'على الأصناف'} — يطبق تلقائيًا، ولا يشمل الإضافات.</p>
-          <div className="mt-3 flex flex-wrap gap-2">{mappedProducts.filter(p => !offer.product_id || p.id===offer.product_id).map(p => <button disabled={!isAcceptingOrders} key={p.id} onClick={() => { setActiveCategory(p.category); setCustomizing(p); }} className="rounded-xl border px-3 py-2">{p.name} · {formatCurrency(p.price,currency)} — إضافة</button>)}</div>
-        </article>)}
+        {offers
+          .filter((o) => o.active)
+          .map((offer) => (
+            <article key={offer.id} className="rounded-2xl border bg-surface p-4">
+              <h2 className="text-lg font-bold">{offer.title}</h2>
+              <p className="text-primary">
+                خصم {offer.discount_percentage}%{" "}
+                {offer.product_id ? "على الصنف المحدد" : "على الأصناف"} — يطبق تلقائيًا، ولا يشمل
+                الإضافات.
+              </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {mappedProducts
+                  .filter((p) => !offer.product_id || p.id === offer.product_id)
+                  .map((p) => (
+                    <button
+                      disabled={!isAcceptingOrders}
+                      key={p.id}
+                      onClick={() => {
+                        selectProduct(p);
+                      }}
+                      className="rounded-xl border px-3 py-2"
+                    >
+                      {p.name} · {formatCurrency(p.price, currency)} — إضافة
+                    </button>
+                  ))}
+              </div>
+            </article>
+          ))}
       </section>
 
       {!isAcceptingOrders && (
@@ -216,7 +383,11 @@ function MenuPage() {
             : "عذراً، المطعم لا يستقبل طلبات في الوقت الحالي."}
         </div>
       )}
-      {reorderNotice && <div className="mx-4 mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">{reorderNotice}</div>}
+      {reorderNotice && (
+        <div className="mx-4 mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">
+          {reorderNotice}
+        </div>
+      )}
 
       <CategoryPills
         active={activeCategory || ""}
@@ -233,23 +404,7 @@ function MenuPage() {
             onClick={() => {
               try {
                 if (isAcceptingOrders) {
-                  if (!item.groups || item.groups.length === 0) {
-                    setLines((prev) => [
-                      ...prev,
-                      {
-                        key: `${item.id}-${Date.now()}`,
-                        productId: item.id,
-                        name: item.name,
-                        image: item.image,
-                        quantity: 1,
-                        unitPrice: item.price,
-                        selectionLabels: [],
-                        selectedOptions: [],
-                      },
-                    ]);
-                  } else {
-                    setCustomizing(item);
-                  }
+                  selectProduct(item);
                 }
               } catch (err) {
                 console.error("Error handling product click:", err);
@@ -279,6 +434,10 @@ function MenuPage() {
                 width={800}
                 height={800}
                 loading="lazy"
+                onError={(event) => {
+                  event.currentTarget.onerror = null;
+                  event.currentTarget.src = "/demo-grilled-fish.svg";
+                }}
                 className="h-24 w-24 rounded-2xl object-cover"
               />
               <span className="gradient-primary absolute -bottom-1 -left-1 grid h-8 w-8 place-items-center rounded-full text-primary-foreground shadow-glow">

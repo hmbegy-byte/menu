@@ -1,118 +1,100 @@
-import { Search, ShoppingBag, Star, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { formatCurrency } from "../../lib/currency";
-
-export default function CustomersManager({ adminData }) {
+import { useSalesReport } from "../../hooks/useSalesReport";
+import ReportPeriod from "../../components/ReportPeriod";
+export default function CustomersManager({
+  adminData,
+}: {
+  adminData: { store: { id: string; currency: string } };
+}) {
   const [search, setSearch] = useState("");
-  const customers = useMemo(() => {
-    const grouped = new Map();
-    adminData.orders
-      .filter((o) => o.status !== "cancelled")
-      .forEach((order) => {
-        const key = String(order.customer_phone || "").replace(/\s/g, "");
-        const current = grouped.get(key) || {
-          phone: order.customer_phone,
-          name: order.customer_name,
-          orders: 0,
-          spent: 0,
-          lastOrder: order.created_at,
-        };
-        current.orders += 1;
-        current.spent += Number(order.total_amount || 0);
-        if (new Date(order.created_at) > new Date(current.lastOrder)) {
-          current.lastOrder = order.created_at;
-          current.name = order.customer_name;
-        }
-        grouped.set(key, current);
-      });
-    return [...grouped.values()].sort((a, b) => b.spent - a.spent);
-  }, [adminData.orders]);
-  const visible = customers.filter((c) =>
-    `${c.name} ${c.phone}`.toLowerCase().includes(search.toLowerCase()),
-  );
+  const [offset, setOffset] = useState(0);
+  const data = useSalesReport(adminData.store.id, search, offset);
+  const r = data.report;
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="flex items-center gap-2 text-2xl font-bold">
-          <Users className="text-purple-600" /> العملاء
-        </h2>
-        <p className="mt-1 text-gray-500">قاعدة عملاء موحدة مبنية تلقائيًا من الطلبات.</p>
-      </div>
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border bg-white p-5">
-          <p className="text-sm text-gray-500">إجمالي العملاء</p>
-          <p className="text-3xl font-bold">{customers.length}</p>
-        </div>
-        <div className="rounded-2xl border bg-white p-5">
-          <p className="text-sm text-gray-500">العملاء المتكررون</p>
-          <p className="text-3xl font-bold">{customers.filter((c) => c.orders > 1).length}</p>
-        </div>
-        <div className="rounded-2xl border bg-white p-5">
-          <p className="text-sm text-gray-500">كبار العملاء</p>
-          <p className="text-3xl font-bold">{customers.filter((c) => c.orders >= 3).length}</p>
-        </div>
-      </div>
-      <label className="flex items-center gap-2 rounded-xl border bg-white px-4">
-        <Search size={18} className="text-gray-400" />
+    <div className="space-y-5">
+      <h2 className="text-2xl font-bold">العملاء</h2>
+      <ReportPeriod
+        {...data}
+        setFrom={(v) => {
+          setOffset(0);
+          data.setFrom(v);
+        }}
+        setTo={(v) => {
+          setOffset(0);
+          data.setTo(v);
+        }}
+      />
+      <p>
+        الإنفاق للطلبات المكتملة بعد المرتجعات المسجلة. الأرقام تخص الفترة المختارة، وليست دليلًا
+        على التحصيل.
+      </p>
+      <label className="block">
+        البحث بالاسم أو الهاتف
         <input
+          className="block w-full rounded border p-3"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="ابحث بالاسم أو الهاتف"
-          className="w-full p-3 outline-none"
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setOffset(0);
+          }}
         />
       </label>
-      <div className="overflow-hidden rounded-2xl border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full text-right text-sm">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-4">العميل</th>
-                <th className="p-4">الطلبات</th>
-                <th className="p-4">إجمالي الإنفاق</th>
-                <th className="p-4">آخر طلب</th>
-                <th className="p-4">التصنيف</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((customer) => (
-                <tr key={customer.phone} className="border-t">
-                  <td className="p-4">
-                    <strong>{customer.name}</strong>
-                    <p className="text-gray-500" dir="ltr">
-                      {customer.phone}
-                    </p>
-                  </td>
-                  <td className="p-4">
-                    <span className="flex items-center gap-1">
-                      <ShoppingBag size={15} /> {customer.orders}
-                    </span>
-                  </td>
-                  <td className="p-4 font-bold">
-                    {formatCurrency(customer.spent, adminData.store.currency)}
-                  </td>
-                  <td className="p-4">
-                    {new Date(customer.lastOrder).toLocaleDateString("ar-SA")}
-                  </td>
-                  <td className="p-4">
-                    {customer.orders >= 3 ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-amber-700">
-                        <Star size={13} /> مميز
-                      </span>
-                    ) : customer.orders > 1 ? (
-                      <span className="rounded-full bg-blue-100 px-2 py-1 text-blue-700">
-                        متكرر
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-gray-100 px-2 py-1">جديد</span>
-                    )}
-                  </td>
+      {data.error ? (
+        <p role="alert">{data.error}</p>
+      ) : !r ? (
+        <p role="status">جارٍ التحميل…</p>
+      ) : (
+        <>
+          <p>عدد العملاء المطابقين: {r.customer_count}</p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-right">
+              <thead>
+                <tr>
+                  {["العميل", "الهاتف", "المكتملة", "صافي الإنفاق", "آخر طلب"].map((h) => (
+                    <th key={h} className="p-3">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {!visible.length && <p className="p-8 text-center text-gray-500">لا توجد نتائج.</p>}
-      </div>
+              </thead>
+              <tbody>
+                {r.customers.map((c) => (
+                  <tr key={c.phone} className="border-t">
+                    <td className="p-3">{c.name}</td>
+                    <td dir="ltr" className="p-3">
+                      {c.phone}
+                    </td>
+                    <td className="p-3">{c.orders}</td>
+                    <td className="p-3">{formatCurrency(c.spent, adminData.store.currency)}</td>
+                    <td className="p-3">
+                      {new Date(c.last_order).toLocaleDateString("ar-SA", {
+                        timeZone: "Asia/Riyadh",
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex gap-3">
+            <button
+              className="rounded border p-2 disabled:opacity-40"
+              disabled={offset === 0}
+              onClick={() => setOffset(Math.max(0, offset - 50))}
+            >
+              السابق
+            </button>
+            <button
+              className="rounded border p-2 disabled:opacity-40"
+              disabled={offset + 50 >= r.customer_count}
+              onClick={() => setOffset(offset + 50)}
+            >
+              التالي
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

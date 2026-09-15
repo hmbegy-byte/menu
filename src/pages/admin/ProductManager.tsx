@@ -1,19 +1,30 @@
 import React, { useState } from "react";
 import { Plus, Edit2, Trash2, Image as ImageIcon, Upload, Download } from "lucide-react";
 import ProductFormModal from "./ProductFormModal";
+import type { CatalogProduct, CatalogCategory } from "../../lib/catalogTypes";
 export default function ProductManager({
   store,
   products,
   setProducts,
   categories = [],
   adminData,
+}: {
+  store: { id: string; currency: string };
+  products: CatalogProduct[];
+  setProducts: unknown;
+  categories?: CatalogCategory[];
+  adminData: {
+    saveEntity: (table: string, payload: Record<string, unknown>) => Promise<CatalogCategory>;
+    deleteEntity: (table: string, id: string) => Promise<unknown>;
+    reload: () => Promise<unknown>;
+  };
 }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null);
+  const [editingProduct, setEditingProduct] = useState<CatalogProduct | null>(null);
   const [importing, setImporting] = useState(false);
   const [importMessage, setImportMessage] = useState("");
 
-  const parseCsvLine = (line) => {
+  const parseCsvLine = (line: string) => {
     const values = [];
     let value = "";
     let quoted = false;
@@ -32,7 +43,7 @@ export default function ProductManager({
     return values;
   };
 
-  const importMenu = async (file) => {
+  const importMenu = async (file: File) => {
     setImporting(true);
     setImportMessage("");
     try {
@@ -40,7 +51,7 @@ export default function ProductManager({
       const lines = text.split(/\r?\n/).filter((line) => line.trim());
       if (lines.length < 2) throw new Error("الملف لا يحتوي على منتجات.");
       if (lines.length > 501) throw new Error("الحد الأقصى 500 منتج في كل عملية استيراد.");
-      const headers = parseCsvLine(lines[0]).map((header) => header.trim().toLowerCase());
+      const headers = parseCsvLine(lines[0] ?? "").map((header) => header.trim().toLowerCase());
       const rows = lines.slice(1).map((line) => {
         const values = parseCsvLine(line);
         return Object.fromEntries(headers.map((header, index) => [header, values[index] || ""]));
@@ -50,9 +61,9 @@ export default function ProductManager({
       );
       let imported = 0;
       for (const row of rows) {
-        const name = row.name || row["الاسم"];
-        const price = Number(row.price || row["السعر"]);
-        const categoryName = row.category || row["التصنيف"] || "بدون تصنيف";
+        const name = row["name"] || row["الاسم"];
+        const price = Number(row["price"] || row["السعر"]);
+        const categoryName = row["category"] || row["التصنيف"] || "بدون تصنيف";
         if (!name || !Number.isFinite(price) || price < 0) continue;
         const categoryKey = categoryName.trim().toLowerCase();
         let category = categoryMap.get(categoryKey);
@@ -67,12 +78,12 @@ export default function ProductManager({
         }
         await adminData.saveEntity("products", {
           name: name.trim(),
-          description: row.description || row["الوصف"] || "",
+          description: row["description"] || row["الوصف"] || "",
           price,
           category_id: category.id,
-          image_url: row.image_url || row["رابط الصورة"] || null,
+          image_url: row["image_url"] || row["رابط الصورة"] || null,
           is_available: !["false", "0", "لا"].includes(
-            String(row.available || row["متاح"] || "true").toLowerCase(),
+            String(row["available"] || row["متاح"] || "true").toLowerCase(),
           ),
           options: [],
         });
@@ -100,7 +111,7 @@ export default function ProductManager({
     URL.revokeObjectURL(url);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!window.confirm("هل أنت متأكد من حذف هذا المنتج؟")) return;
 
     try {
@@ -115,7 +126,7 @@ export default function ProductManager({
     setIsModalOpen(true);
   };
 
-  const openEditModal = (product) => {
+  const openEditModal = (product: CatalogProduct) => {
     setEditingProduct(product);
     setIsModalOpen(true);
   };
@@ -176,7 +187,7 @@ export default function ProductManager({
             <tbody className="divide-y divide-gray-100">
               {products.length === 0 ? (
                 <tr>
-                  <td colSpan="4" className="p-8 text-center text-gray-500">
+                  <td colSpan={4} className="p-8 text-center text-gray-500">
                     لا توجد منتجات حالياً. أضف منتجك الأول!
                   </td>
                 </tr>

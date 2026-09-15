@@ -9,7 +9,13 @@ export const Route = createFileRoute("/api/manifest")({
         const url = new URL(request.url);
         const storeSlug = url.searchParams.get("store");
 
-        let brandAssets: any = null;
+        let brandAssets: {
+          brand_name?: string;
+          pwa_short_name?: string;
+          meta_description?: string;
+          theme_color?: string;
+          favicon_url?: string;
+        } | null = null;
 
         if (storeSlug) {
           const { data: store } = await supabase
@@ -24,7 +30,7 @@ export const Route = createFileRoute("/api/manifest")({
               .select("*")
               .eq("store_id", store.id)
               .maybeSingle();
-            
+
             if (assets) {
               brandAssets = assets;
             }
@@ -44,9 +50,9 @@ export const Route = createFileRoute("/api/manifest")({
               src: brandAssets?.favicon_url || "/favicon.svg",
               sizes: "192x192 512x512",
               type: brandAssets?.favicon_url ? "image/png" : "image/svg+xml",
-              purpose: "any maskable"
-            }
-          ]
+              purpose: "any maskable",
+            },
+          ],
         };
 
         return new Response(JSON.stringify(manifest), {
