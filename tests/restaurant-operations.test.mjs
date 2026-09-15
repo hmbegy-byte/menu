@@ -10,6 +10,10 @@ const sql = readFileSync(
   ),
   "utf8",
 );
+const boardGuardSql = readFileSync(
+  new URL("../supabase/migrations/20260915000300_order_board_invalid_token.sql", import.meta.url),
+  "utf8",
+);
 const cart = readFileSync(new URL("../src/components/menu/CartSheet.tsx", import.meta.url), "utf8");
 const kitchen = readFileSync(new URL("../src/hooks/useKitchenData.ts", import.meta.url), "utf8");
 const board = readFileSync(
@@ -58,6 +62,8 @@ test("public order board exposes no customer data", () => {
   assert.doesNotMatch(board, /customer_name|customer_phone/);
   assert.match(board, /useState<boolean \| null>\(null\)/);
   assert.doesNotMatch(board, /useState\(\(\) => navigator\.onLine\)/);
+  assert.match(board, /"message" in cause/);
+  assert.match(boardGuardSql, /رابط الشاشة غير صالح أو متوقف/);
 });
 
 test("inventory deduction is optional, transactional and idempotent", () => {

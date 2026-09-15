@@ -40,7 +40,13 @@ function OrderDisplayBoard() {
       }
       setError("");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "تعذر تحديث الشاشة");
+      const message =
+        cause instanceof Error
+          ? cause.message
+          : cause && typeof cause === "object" && "message" in cause
+            ? String(cause.message)
+            : "تعذر تحديث الشاشة";
+      setError(message);
     }
   }, [access_token]);
 
