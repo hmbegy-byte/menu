@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isMockMode, supabase } from "../lib/supabase";
 import { domainStoreSlug } from "../lib/domainDestination.mjs";
+import { isHostedPlatformHost, safeRememberedStore } from "../lib/hostedAppDestination.mjs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -19,8 +20,14 @@ function DomainResolver() {
   useEffect(() => {
     const resolve = async () => {
       const hostname = window.location.hostname.toLowerCase().replace(/^www\./, "");
-      if (isMockMode || hostname === "localhost" || hostname === "127.0.0.1") {
-        navigate({ to: "/s/$store_slug", params: { store_slug: "demo" }, replace: true });
+      if (
+        isMockMode ||
+        hostname === "localhost" ||
+        hostname === "127.0.0.1" ||
+        isHostedPlatformHost(hostname)
+      ) {
+        const remembered = safeRememberedStore(localStorage.getItem("flavor-flow:last-store"));
+        navigate({ to: "/s/$store_slug", params: { store_slug: remembered }, replace: true });
         return;
       }
       const { data, error: domainError } = await supabase

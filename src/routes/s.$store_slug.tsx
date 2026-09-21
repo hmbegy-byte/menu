@@ -54,6 +54,9 @@ export const Route = createFileRoute("/s/$store_slug")({
 
 function MenuPage() {
   const { store_slug } = Route.useParams();
+  useEffect(() => {
+    localStorage.setItem("flavor-flow:last-store", store_slug.toLowerCase());
+  }, [store_slug]);
   const {
     store,
     categories: loadedCategories,

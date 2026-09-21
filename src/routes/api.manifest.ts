@@ -7,7 +7,12 @@ export const Route = createFileRoute("/api/manifest")({
     handlers: {
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const storeSlug = url.searchParams.get("store");
+        const requestedStore = url.searchParams.get("store");
+        const referringPath = request.headers.get("referer")
+          ? new URL(request.headers.get("referer") as string).pathname
+          : "";
+        const referredStore = referringPath.match(/^\/s\/([^/]+)/)?.[1] || null;
+        const storeSlug = requestedStore || referredStore;
 
         let brandAssets: {
           brand_name?: string;
@@ -41,7 +46,9 @@ export const Route = createFileRoute("/api/manifest")({
           name: brandAssets?.brand_name || "Flavor Flow",
           short_name: brandAssets?.pwa_short_name || brandAssets?.brand_name || "Flavor Flow",
           description: brandAssets?.meta_description || "Restaurant menu and ordering",
+          id: storeSlug ? `/s/${storeSlug}` : "/",
           start_url: storeSlug ? `/s/${storeSlug}` : "/",
+          scope: "/",
           display: "standalone",
           background_color: brandAssets?.theme_color || "#ffffff",
           theme_color: brandAssets?.theme_color || "#0284c7",
