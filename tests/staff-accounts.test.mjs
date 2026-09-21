@@ -47,3 +47,9 @@ test("restaurant administrators receive and lose organization management with th
   assert.match(sql, /not exists\([\s\S]*sm\.role='admin'/);
   assert.match(sql, /if p_role='admin' then/);
 });
+
+test("invitation acceptance retains access to hosted pgcrypto", () => {
+  const sql = read("supabase/migrations/20260921000100_restore_pgcrypto_function_paths.sql");
+  assert.match(sql, /alter function public\.accept_staff_invitation\(text\)/);
+  assert.match(sql, /where e\.extname = 'pgcrypto'/);
+});

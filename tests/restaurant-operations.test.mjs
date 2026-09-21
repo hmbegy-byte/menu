@@ -14,6 +14,13 @@ const boardGuardSql = readFileSync(
   new URL("../supabase/migrations/20260915000300_order_board_invalid_token.sql", import.meta.url),
   "utf8",
 );
+const cryptoPathSql = readFileSync(
+  new URL(
+    "../supabase/migrations/20260921000100_restore_pgcrypto_function_paths.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const cart = readFileSync(new URL("../src/components/menu/CartSheet.tsx", import.meta.url), "utf8");
 const kitchen = readFileSync(new URL("../src/hooks/useKitchenData.ts", import.meta.url), "utf8");
 const board = readFileSync(
@@ -55,6 +62,12 @@ test("curbside checkout and kitchen acknowledgement are complete", () => {
   assert.match(sql, /checkout_context_hash/);
   assert.match(sql, /v_existing_hash<>v_hash/);
   assert.match(tracking, /writeDemo\("orders"/);
+});
+
+test("checkout resolves pgcrypto from its installed Supabase schema", () => {
+  assert.match(cryptoPathSql, /where e\.extname = 'pgcrypto'/);
+  assert.match(cryptoPathSql, /alter function public\.create_order_v5/);
+  assert.match(cryptoPathSql, /set search_path = public, %I, pg_temp/);
 });
 
 test("public order board exposes no customer data", () => {
