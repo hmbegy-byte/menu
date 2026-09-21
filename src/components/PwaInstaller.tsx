@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Download, X } from "lucide-react";
+import { safeInstalledStartPath } from "../lib/hostedAppDestination.mjs";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
@@ -46,6 +47,8 @@ export default function PwaInstaller() {
       <button
         type="button"
         onClick={async () => {
+          const startPath = safeInstalledStartPath(window.location.pathname);
+          if (startPath) localStorage.setItem("flavor-flow:installed-start", startPath);
           await promptEvent.prompt();
           await promptEvent.userChoice;
           setPromptEvent(null);

@@ -17,3 +17,10 @@ export function safeRememberedStore(value, fallback = "demo") {
     .toLowerCase();
   return /^[a-z0-9][a-z0-9-]{0,62}$/.test(normalized) ? normalized : fallback;
 }
+
+export function safeInstalledStartPath(value) {
+  const path = String(value || "").trim();
+  const match = path.match(/^\/(s|kitchen|admin)\/([a-z0-9][a-z0-9-]{0,62})\/?$/i);
+  if (!match) return null;
+  return `/${match[1].toLowerCase()}/${match[2].toLowerCase()}`;
+}

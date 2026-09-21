@@ -35,6 +35,10 @@ export default function Kitchen({ storeSlug }: { storeSlug: string }) {
   const oscillatorRef = useRef<OscillatorNode | null>(null);
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
+  useEffect(() => {
+    localStorage.setItem("flavor-flow:installed-start", `/kitchen/${storeSlug.toLowerCase()}`);
+  }, [storeSlug]);
+
   // Initialize Wake Lock and Audio Context
   const enableAlerts = async () => {
     try {

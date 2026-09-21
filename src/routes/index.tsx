@@ -2,7 +2,11 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { isMockMode, supabase } from "../lib/supabase";
 import { domainStoreSlug } from "../lib/domainDestination.mjs";
-import { isHostedPlatformHost, safeRememberedStore } from "../lib/hostedAppDestination.mjs";
+import {
+  isHostedPlatformHost,
+  safeInstalledStartPath,
+  safeRememberedStore,
+} from "../lib/hostedAppDestination.mjs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -26,6 +30,13 @@ function DomainResolver() {
         hostname === "127.0.0.1" ||
         isHostedPlatformHost(hostname)
       ) {
+        const installedStart = safeInstalledStartPath(
+          localStorage.getItem("flavor-flow:installed-start"),
+        );
+        if (installedStart) {
+          window.location.replace(installedStart);
+          return;
+        }
         const remembered = safeRememberedStore(localStorage.getItem("flavor-flow:last-store"));
         navigate({ to: "/s/$store_slug", params: { store_slug: remembered }, replace: true });
         return;

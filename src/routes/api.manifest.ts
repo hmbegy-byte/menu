@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { supabase } from "../lib/supabase";
+import { safeInstalledStartPath } from "../lib/hostedAppDestination.mjs";
 
 export const Route = createFileRoute("/api/manifest")({
   server: {
@@ -11,8 +12,11 @@ export const Route = createFileRoute("/api/manifest")({
         const referringPath = request.headers.get("referer")
           ? new URL(request.headers.get("referer") as string).pathname
           : "";
-        const referredStore = referringPath.match(/^\/s\/([^/]+)/)?.[1] || null;
+        const referredStore = referringPath.match(/^\/(?:s|kitchen|admin)\/([^/]+)/)?.[1] || null;
         const storeSlug = requestedStore || referredStore;
+        const startUrl =
+          (requestedStore ? `/s/${requestedStore}` : safeInstalledStartPath(referringPath)) ||
+          (storeSlug ? `/s/${storeSlug}` : "/");
 
         let brandAssets: {
           brand_name?: string;
@@ -46,8 +50,8 @@ export const Route = createFileRoute("/api/manifest")({
           name: brandAssets?.brand_name || "Flavor Flow",
           short_name: brandAssets?.pwa_short_name || brandAssets?.brand_name || "Flavor Flow",
           description: brandAssets?.meta_description || "Restaurant menu and ordering",
-          id: storeSlug ? `/s/${storeSlug}` : "/",
-          start_url: storeSlug ? `/s/${storeSlug}` : "/",
+          id: startUrl,
+          start_url: startUrl,
           scope: "/",
           display: "standalone",
           background_color: brandAssets?.theme_color || "#ffffff",
