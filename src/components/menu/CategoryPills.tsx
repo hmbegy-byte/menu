@@ -17,7 +17,11 @@ export function CategoryPills({ active, onChange, categories = [] }: Props) {
 
   useEffect(() => {
     const el = containerRef.current?.querySelector<HTMLElement>(`[data-cat="${active}"]`);
-    el?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    el?.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      inline: "center",
+      block: "nearest",
+    });
   }, [active]);
 
   return (
@@ -25,7 +29,10 @@ export function CategoryPills({ active, onChange, categories = [] }: Props) {
       className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-xl"
       aria-label="تصنيفات القائمة"
     >
-      <div ref={containerRef} className="no-scrollbar flex gap-2 overflow-x-auto px-4 py-3">
+      <div
+        ref={containerRef}
+        className="no-scrollbar mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 py-2.5"
+      >
         {(categories || []).map((cat) => {
           const isActive = cat.id === active;
           return (
@@ -35,10 +42,10 @@ export function CategoryPills({ active, onChange, categories = [] }: Props) {
               type="button"
               onClick={() => onChange(cat.id)}
               aria-current={isActive ? "true" : undefined}
-              className={`relative shrink-0 rounded-full px-4 py-2 text-sm font-bold transition-all duration-300 ${
+              className={`relative min-h-11 shrink-0 rounded-full border px-4 py-2 text-sm font-bold transition-colors ${
                 isActive
-                  ? "gradient-primary text-primary-foreground shadow-glow scale-105"
-                  : "bg-surface text-muted-foreground hover:bg-surface-strong"
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-transparent bg-surface text-muted-foreground hover:bg-surface-strong hover:text-foreground"
               }`}
             >
               {cat.name}

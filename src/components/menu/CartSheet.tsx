@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase-generated database types will replace these boundary values. */
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   CheckCircle2,
   Clock3,
@@ -9,6 +9,7 @@ import {
   Plus,
   ShoppingBag,
   Trash2,
+  UtensilsCrossed,
   X,
 } from "lucide-react";
 import { formatCurrency } from "../../lib/currency";
@@ -101,6 +102,7 @@ export function CartSheet({
   const [confirmed, setConfirmed] = useState<Confirmation | null>(null);
   const [locationStatus, setLocationStatus] = useState("");
   const [checkoutAttemptId] = useState(() => crypto.randomUUID());
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const currency = payment.currency || store?.currency || "SAR";
   const subtotal = lines.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0);
   const tax = subtotal * (Number(settings.taxPercent || 0) / 100);
@@ -121,10 +123,16 @@ export function CartSheet({
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !submitting) onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [onClose, submitting]);
   const message = useMemo(
     () =>
       confirmed
@@ -299,7 +307,7 @@ export function CartSheet({
         role="dialog"
         aria-modal="true"
         aria-label="سلة الطلب"
-        className="animate-sheet-up relative flex max-h-[94vh] w-full max-w-md flex-col rounded-t-3xl bg-popover shadow-float"
+        className="animate-sheet-up relative flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-popover shadow-float sm:max-h-[94vh] sm:rounded-3xl"
       >
         <div className="flex items-center justify-between border-b px-4 py-4">
           <h2 className="flex items-center gap-2 text-lg font-extrabold">
@@ -307,6 +315,7 @@ export function CartSheet({
             سلة الطلب
           </h2>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="إغلاق"
@@ -353,18 +362,37 @@ export function CartSheet({
           </div>
         ) : (
           <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
+            <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4">
               {lines.map((line) => (
                 <div
                   key={line.key}
                   className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl bg-surface p-3"
                 >
-                  <img src={line.image} alt="" className="h-14 w-14 rounded-xl object-cover" />
+                  <div className="relative grid h-14 w-14 place-items-center overflow-hidden rounded-xl bg-muted">
+                    <UtensilsCrossed
+                      className="h-5 w-5 text-muted-foreground/50"
+                      aria-hidden="true"
+                    />
+                    {line.image && (
+                      <img
+                        src={line.image}
+                        alt=""
+                        className="absolute inset-0 h-full w-full object-cover"
+                        onError={(event) => {
+                          event.currentTarget.hidden = true;
+                        }}
+                      />
+                    )}
+                  </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold">{line.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {line.selectionLabels.join("، ")}
+                    <p className="line-clamp-2 text-sm font-bold">
+                      <bdi dir="auto">{line.name}</bdi>
                     </p>
+                    {line.selectionLabels.length > 0 && (
+                      <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                        {line.selectionLabels.join("، ")}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs font-bold text-primary">
                       {formatCurrency(line.unitPrice * line.quantity, currency)}
                     </p>
@@ -373,7 +401,7 @@ export function CartSheet({
                         type="button"
                         aria-label="إنقاص الكمية"
                         onClick={() => onChangeQuantity?.(line.key, Math.max(1, line.quantity - 1))}
-                        className="grid h-7 w-7 place-items-center"
+                        className="grid h-10 w-10 place-items-center rounded-full"
                       >
                         <Minus className="h-3 w-3" />
                       </button>
@@ -382,7 +410,7 @@ export function CartSheet({
                         type="button"
                         aria-label="زيادة الكمية"
                         onClick={() => onChangeQuantity?.(line.key, line.quantity + 1)}
-                        className="grid h-7 w-7 place-items-center"
+                        className="grid h-10 w-10 place-items-center rounded-full"
                       >
                         <Plus className="h-3 w-3" />
                       </button>
@@ -398,7 +426,7 @@ export function CartSheet({
                   </button>
                 </div>
               ))}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <label className="text-sm font-bold">
                   الاسم
                   <input
@@ -423,7 +451,7 @@ export function CartSheet({
               <fieldset>
                 <legend className="mb-2 text-sm font-bold">نوع الطلب</legend>
                 <div
-                  className={`grid gap-2 ${settings.dineInEnabled !== false ? "grid-cols-3" : "grid-cols-2"}`}
+                  className={`grid grid-cols-1 gap-2 ${settings.dineInEnabled !== false ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}
                 >
                   <label className="rounded-xl border p-3">
                     <input
@@ -508,7 +536,7 @@ export function CartSheet({
               {form.orderType === "pickup" && settings.curbsideEnabled && (
                 <fieldset className="space-y-3 rounded-2xl border bg-surface p-4">
                   <legend className="px-2 text-sm font-bold">طريقة الاستلام</legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <label className="rounded-xl border bg-background p-3">
                       <input
                         type="radio"
@@ -608,7 +636,7 @@ export function CartSheet({
                 </p>
               )}
             </div>
-            <div className="border-t px-4 py-4">
+            <div className="shrink-0 border-t bg-popover px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-18px_rgba(0,0,0,0.45)]">
               {minimum > 0 && (
                 <p role="status" className="mb-3 text-sm">
                   الحد الأدنى: {formatCurrency(minimum, currency)}

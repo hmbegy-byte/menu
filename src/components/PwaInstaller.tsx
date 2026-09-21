@@ -8,7 +8,10 @@ type InstallPromptEvent = Event & {
 
 export default function PwaInstaller() {
   const [promptEvent, setPromptEvent] = useState<InstallPromptEvent | null>(null);
-  const [hidden, setHidden] = useState(false);
+  const [hidden, setHidden] = useState(() =>
+    typeof window === "undefined" ? false : sessionStorage.getItem("pwa-install-hidden") === "1",
+  );
+  const [checkoutActive, setCheckoutActive] = useState(false);
 
   useEffect(() => {
     if (import.meta.env.PROD && "serviceWorker" in navigator) {
@@ -18,16 +21,23 @@ export default function PwaInstaller() {
       event.preventDefault();
       setPromptEvent(event as InstallPromptEvent);
     };
+    const onCheckoutState = (event: Event) => {
+      setCheckoutActive(Boolean((event as CustomEvent<boolean>).detail));
+    };
     window.addEventListener("beforeinstallprompt", onPrompt);
-    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("flavor-flow:checkout-active", onCheckoutState);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("flavor-flow:checkout-active", onCheckoutState);
+    };
   }, []);
 
-  if (!promptEvent || hidden) return null;
+  if (!promptEvent || hidden || checkoutActive) return null;
 
   return (
     <div
       dir="rtl"
-      className="fixed bottom-4 left-4 z-50 flex max-w-sm items-center gap-3 rounded-2xl border border-purple-200 bg-card p-3 text-foreground shadow-xl"
+      className="fixed right-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-3 z-40 mx-auto flex max-w-sm items-center gap-3 rounded-2xl border bg-card p-3 text-foreground shadow-float sm:right-auto sm:bottom-4 sm:left-4 sm:mx-0"
     >
       <div className="min-w-0">
         <p className="font-bold">ثبّت النظام على جهازك</p>
@@ -46,9 +56,12 @@ export default function PwaInstaller() {
       </button>
       <button
         type="button"
-        aria-label="إخفاء"
-        onClick={() => setHidden(true)}
-        className="rounded-lg p-1 text-muted-foreground hover:bg-muted"
+        aria-label="إخفاء اقتراح التثبيت لهذه الجلسة"
+        onClick={() => {
+          sessionStorage.setItem("pwa-install-hidden", "1");
+          setHidden(true);
+        }}
+        className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-muted-foreground hover:bg-muted"
       >
         <X size={16} />
       </button>

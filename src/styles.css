@@ -2,7 +2,6 @@
 @source "../src";
 @import "tw-animate-css";
 
-
 @custom-variant dark (&:is(.dark *));
 
 /* Flavor Flow: neutral operations, blue actions, independent restaurant identity. */
@@ -39,8 +38,13 @@
   border: 2px solid var(--ring);
   border-radius: 0.75rem;
 }
-.skip-link:focus { top: 1rem; }
-.admin-shell nav button { min-height: 48px; text-align: start; }
+.skip-link:focus {
+  top: 1rem;
+}
+.admin-shell nav button {
+  min-height: 48px;
+  text-align: start;
+}
 .admin-shell nav button[aria-current="page"] {
   background: var(--secondary);
   color: var(--secondary-foreground);
@@ -53,7 +57,9 @@
   font-size: 1rem;
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -61,11 +67,7 @@
   }
 }
 
-/*
- * Design system — seafood QR menu.
- * Deep-sea ink surfaces, coral primary accent, sand highlights.
- * Primary tokens are theme-driven so admin white-labeling can override them.
- */
+/* Restaurant storefront tokens remain neutral and are overridden by each saved brand color. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 6px);
@@ -198,7 +200,10 @@
   left: 0.75rem;
   z-index: 80;
   display: inline-flex;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   border: 1px solid var(--color-border);
   border-radius: 999px;
@@ -422,8 +427,8 @@
   --border: #d6dfe9;
   --input: #b9c6d6;
   --ring: #2563eb;
-  --gradient-primary: linear-gradient(var(--primary),var(--primary));
-  --gradient-deep: linear-gradient(180deg,transparent,#101b2be6);
+  --gradient-primary: linear-gradient(var(--primary), var(--primary));
+  --gradient-deep: linear-gradient(180deg, transparent, #101b2be6);
   --shadow-float: 0 10px 30px -16px #10213b40;
   --shadow-glow: 0 6px 18px -10px #10213b40;
 }
@@ -449,7 +454,11 @@
   --input: #536478;
   --ring: #93c5fd;
 }
-h1, h2, h3 { color: var(--foreground); letter-spacing: normal; }
+h1,
+h2,
+h3 {
+  letter-spacing: normal;
+}
 .storefront {
   --background: #faf7f2;
   --foreground: #30241f;
@@ -466,6 +475,11 @@ h1, h2, h3 { color: var(--foreground); letter-spacing: normal; }
   --accent-foreground: #4b3026;
   background-color: var(--background);
   color: var(--foreground);
+  overflow-x: clip;
+  scroll-padding-bottom: 7rem;
+}
+body:has(.storefront) .theme-toggle {
+  top: max(0.75rem, env(safe-area-inset-top));
 }
 .dark .storefront {
   --background: #191613;
@@ -481,9 +495,4 @@ h1, h2, h3 { color: var(--foreground); letter-spacing: normal; }
   --border: #544437;
   --accent: #493a2e;
   --accent-foreground: #f5eee5;
-}
-.dark .storefront[data-brand="la-gaufres"] {
-  --primary: #ddb08a !important;
-  --primary-foreground: #30241f !important;
-  --ring: #ddb08a;
 }

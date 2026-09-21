@@ -36,3 +36,14 @@ test("kitchen uses independent credentials and is outside the admin idle lock", 
     assert.ok(read(path).includes('autoComplete="username"'));
   }
 });
+
+test("restaurant administrators receive and lose organization management with their role", () => {
+  const sql = read("supabase/migrations/20260916000100_unify_owner_admin_access.sql");
+  assert.match(sql, /where sm\.role='admin'/);
+  assert.match(sql, /if inv\.role='admin' then/);
+  assert.match(sql, /if account\.role='admin' then/);
+  assert.match(sql, /insert into public\.organization_members/);
+  assert.match(sql, /delete from public\.organization_members/);
+  assert.match(sql, /not exists\([\s\S]*sm\.role='admin'/);
+  assert.match(sql, /if p_role='admin' then/);
+});

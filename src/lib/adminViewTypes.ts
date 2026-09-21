@@ -31,6 +31,7 @@ export type AdminViewData = {
     maxOrdersPer15Minutes?: number;
     pausedUntil?: string;
     pauseReason?: string;
+    menuTagline?: string;
     whatsappMessageTemplate?: string;
     curbsideEnabled?: boolean;
     googleReviewEnabled?: boolean;

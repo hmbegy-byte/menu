@@ -15,6 +15,7 @@ export default function GeneralSettings({ adminData }: { adminData: AdminViewDat
     maxOrdersPer15Minutes: settings?.maxOrdersPer15Minutes || 12,
     pausedUntil: settings?.pausedUntil || "",
     pauseReason: settings?.pauseReason || "",
+    menuTagline: settings?.menuTagline || "",
     whatsappMessageTemplate:
       settings?.whatsappMessageTemplate ||
       "مرحباً، أود طلب الآتي:\n\n{orders}\n\nالإجمالي: {total} {currency}\n\nالاسم: {name}\nرقم الهاتف: {phone}\nالعنوان: {address}",
@@ -87,6 +88,22 @@ export default function GeneralSettings({ adminData }: { adminData: AdminViewDat
             />
             <div className="w-14 h-7 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-purple-600"></div>
           </label>
+        </div>
+
+        <div className="border-t border-gray-100 pt-4">
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            العبارة التعريفية في مقدمة المنيو (اختيارية)
+          </label>
+          <input
+            value={formData.menuTagline}
+            onChange={(e) => setFormData({ ...formData, menuTagline: e.target.value })}
+            maxLength={80}
+            placeholder="مثال: محضّر يوميًا بحب"
+            className="w-full rounded-xl border border-gray-300 p-2.5 outline-none focus:ring-2 focus:ring-primary"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            اتركها فارغة لإخفائها بالكامل. لن يضيف النظام عبارة افتراضية بدلًا منها.
+          </p>
         </div>
 
         {/* Tax and Min Order */}

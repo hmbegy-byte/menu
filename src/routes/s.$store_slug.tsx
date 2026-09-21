@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { createFileRoute, useLocation } from "@tanstack/react-router";
-import { Flame, MapPin, Plus, ShoppingBag, Store } from "lucide-react";
+import {
+  CheckCircle2,
+  Clock3,
+  MapPin,
+  PauseCircle,
+  Plus,
+  ShoppingBag,
+  Store,
+  Truck,
+  UtensilsCrossed,
+} from "lucide-react";
 
 import { CategoryPills } from "../components/menu/CategoryPills";
 import { ItemCustomizer } from "../components/menu/ItemCustomizer";
@@ -16,6 +26,7 @@ import { isOpenAt } from "../lib/workingHours.mjs";
 import { discountedPrice } from "../lib/offers.mjs";
 import { brandText } from "../lib/brandContrast.mjs";
 import { menuSelectionMode } from "../lib/menuSelection.mjs";
+import { getMenuOrderMethods, getMenuOrderStatus } from "../lib/storefrontView.mjs";
 import type {
   CatalogProduct,
   CatalogCategory,
@@ -113,7 +124,6 @@ function MenuPage() {
     return (categories || []).map((c) => ({
       id: c.id,
       name: c.name,
-      icon: "fish", // Placeholder
     }));
   }, [categories]);
 
@@ -143,7 +153,7 @@ function MenuPage() {
         name: p.name,
         description: p.description,
         price: discountedPrice(p, offers),
-        image: p.image_url || "/demo-grilled-fish.svg",
+        image: p.image_url || "",
         tag: p.tag || "",
         groups: groups,
       };
@@ -237,6 +247,25 @@ function MenuPage() {
 
   const count = lines.reduce((sum, l) => sum + l.quantity, 0);
   const total = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+  const activeOffers = offers.filter((offer) => offer.active);
+  const configuredEta = Number(settings?.pickupEtaMinutes || 0);
+  const orderMethods = getMenuOrderMethods(settings);
+  const orderStatus = getMenuOrderStatus({
+    acceptingOrders: settings?.acceptingOrders,
+    isWithinWorkingHours,
+    isTemporarilyPaused,
+    pauseReason: settings?.pauseReason,
+  });
+
+  useEffect(() => {
+    const checkoutActive = count > 0 || Boolean(customizing) || cartOpen;
+    window.dispatchEvent(
+      new CustomEvent("flavor-flow:checkout-active", { detail: checkoutActive }),
+    );
+    return () => {
+      window.dispatchEvent(new CustomEvent("flavor-flow:checkout-active", { detail: false }));
+    };
+  }, [count, customizing, cartOpen]);
 
   const selectProduct = (item: MenuItem) => {
     setActiveCategory(item.category);
@@ -275,66 +304,104 @@ function MenuPage() {
   return (
     <div
       className="storefront min-h-screen font-cairo transition-colors duration-300"
-      data-brand={
-        store.slug === "demo" &&
-        (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
-          ? "la-gaufres"
-          : "custom"
-      }
       style={
         {
-          "--theme-primary":
-            store.slug === "demo" &&
-            (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
-              ? "#70452f"
-              : appearance?.primaryColor || "#70452f",
-          "--primary":
-            store.slug === "demo" &&
-            (!appearance?.primaryColor || ["#9333ea", "#0284c7"].includes(appearance.primaryColor))
-              ? "#70452f"
-              : appearance?.primaryColor || "#70452f",
-          "--primary-foreground": brandText(
-            store.slug === "demo" && ["#9333ea", "#0284c7"].includes(appearance?.primaryColor)
-              ? "#70452f"
-              : appearance?.primaryColor || "#70452f",
-          ),
+          "--theme-primary": appearance?.primaryColor || "#2563eb",
+          "--primary": appearance?.primaryColor || "#2563eb",
+          "--primary-glow": appearance?.primaryColor || "#2563eb",
+          "--ring": appearance?.primaryColor || "#2563eb",
+          "--primary-foreground": brandText(appearance?.primaryColor || "#2563eb"),
         } as CSSProperties
       }
     >
       <BrandUpdater assets={brand_assets || {}} isStore />
 
-      <header className="relative h-52 overflow-hidden bg-surface-strong">
-        <img
-          src={store.cover_url || "/demo-seafood-cover.svg"}
-          alt={store.name}
-          width={1280}
-          height={720}
-          onError={(event) => {
-            event.currentTarget.onerror = null;
-            event.currentTarget.src = "/demo-seafood-cover.svg";
-          }}
-          className="h-full w-full object-cover"
+      <header
+        className={`relative min-h-40 overflow-hidden ${store.cover_url ? "bg-slate-900" : "bg-primary"}`}
+      >
+        {store.cover_url && (
+          <img
+            src={store.cover_url}
+            alt=""
+            width={1280}
+            height={720}
+            onError={(event) => {
+              event.currentTarget.hidden = true;
+            }}
+            className="absolute inset-0 h-full w-full object-cover"
+          />
+        )}
+        <div
+          className={`absolute inset-0 ${store.cover_url ? "bg-gradient-to-t from-black/90 via-black/55 to-black/25" : "bg-gradient-to-l from-black/20 to-transparent"}`}
         />
-        <div className="fade-mask-bottom absolute inset-0 bg-black/30" />
-        <div className="absolute right-4 bottom-4 left-4 flex gap-4 items-end">
-          <div className="w-20 h-20 rounded-full border-2 border-white shadow-lg bg-white/20 backdrop-blur-sm overflow-hidden flex items-center justify-center shrink-0">
+        <div className="relative mx-auto flex min-h-40 max-w-6xl items-end gap-3 px-4 py-5 text-white sm:min-h-52 sm:gap-5 sm:py-7">
+          <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-white/60 bg-white/15 backdrop-blur-sm sm:h-20 sm:w-20">
             {store.logo_url ? (
-              <img src={store.logo_url} alt="Logo" className="w-full h-full object-cover" />
+              <img
+                src={store.logo_url}
+                alt={`شعار ${store.name}`}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.hidden = true;
+                }}
+              />
             ) : (
-              <Store className="w-8 h-8 text-white/70" />
+              <Store className="h-7 w-7 text-white/85" aria-hidden="true" />
             )}
           </div>
-          <div className="flex-1">
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/20 px-2.5 py-1 text-[11px] font-bold text-primary-glow">
-              <Flame className="h-3 w-3" /> طازج من المزاد اليوم
-            </span>
-            <h1 className="mt-2 text-2xl font-extrabold text-white">{store.name}</h1>
-            <p className="mt-1 flex items-center gap-1 text-xs text-gray-200">
-              <MapPin className="h-3 w-3 shrink-0" /> {store.bio || "مشويات وبحريات"}
-            </p>
+          <div className="min-w-0 flex-1">
+            {settings?.menuTagline?.trim() && (
+              <p className="mb-1 inline-flex max-w-full rounded-full bg-black/35 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+                {settings.menuTagline.trim()}
+              </p>
+            )}
+            <h1 className="text-xl font-black text-white sm:text-3xl">
+              <bdi dir="auto">{store.name}</bdi>
+            </h1>
+            {store.bio?.trim() && (
+              <p className="mt-1 line-clamp-2 max-w-2xl text-xs leading-5 text-white/85 sm:text-sm">
+                {store.bio.trim()}
+              </p>
+            )}
+            {store.legal?.nationalAddress?.trim() && (
+              <p className="mt-1 flex items-center gap-1 text-[11px] text-white/75">
+                <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                <span className="line-clamp-1">{store.legal.nationalAddress.trim()}</span>
+              </p>
+            )}
           </div>
         </div>
       </header>
+
+      <section
+        aria-label="معلومات الطلب"
+        className="no-scrollbar mx-auto flex max-w-6xl gap-2 overflow-x-auto px-4 py-3 text-xs"
+      >
+        <span
+          className={`inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 font-bold ${
+            orderStatus.tone === "open"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
+              : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200"
+          }`}
+        >
+          {orderStatus.tone === "open" ? (
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <PauseCircle className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          {orderStatus.label}
+        </span>
+        {configuredEta > 0 && (
+          <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border bg-surface px-3 font-bold">
+            <Clock3 className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+            التحضير قرابة {configuredEta} دقيقة
+          </span>
+        )}
+        <span className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border bg-surface px-3 font-bold">
+          <Truck className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+          {orderMethods.join(" · ")}
+        </span>
+      </section>
 
       <OffersSlideshow
         banners={banners}
@@ -342,49 +409,60 @@ function MenuPage() {
           const item = mappedProducts.find((p) => p.id === id);
           if (item && isAcceptingOrders) {
             selectProduct(item);
-          } else document.getElementById("store-offers")?.scrollIntoView({ behavior: "smooth" });
+          } else {
+            document.getElementById(id ? `product-${id}` : "menu-products")?.scrollIntoView({
+              behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                ? "auto"
+                : "smooth",
+              block: "center",
+            });
+          }
         }}
       />
-      <section id="store-offers" className="mx-4 mt-4 space-y-3" aria-label="العروض والخصومات">
-        {offers
-          .filter((o) => o.active)
-          .map((offer) => (
-            <article key={offer.id} className="rounded-2xl border bg-surface p-4">
-              <h2 className="text-lg font-bold">{offer.title}</h2>
-              <p className="text-primary">
-                خصم {offer.discount_percentage}%{" "}
-                {offer.product_id ? "على الصنف المحدد" : "على الأصناف"} — يطبق تلقائيًا، ولا يشمل
-                الإضافات.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {mappedProducts
-                  .filter((p) => !offer.product_id || p.id === offer.product_id)
-                  .map((p) => (
-                    <button
-                      disabled={!isAcceptingOrders}
-                      key={p.id}
-                      onClick={() => {
-                        selectProduct(p);
-                      }}
-                      className="rounded-xl border px-3 py-2"
-                    >
-                      {p.name} · {formatCurrency(p.price, currency)} — إضافة
-                    </button>
-                  ))}
-              </div>
-            </article>
-          ))}
-      </section>
+      {activeOffers.length > 0 && (
+        <section
+          id="store-offers"
+          className="mx-auto mt-3 max-w-6xl space-y-2 px-4"
+          aria-label="العروض والخصومات"
+        >
+          {activeOffers.map((offer) => {
+            const offerProduct = offer.product_id
+              ? mappedProducts.find((product) => product.id === offer.product_id)
+              : null;
+            return (
+              <article
+                key={offer.id}
+                className="rounded-2xl border border-primary/20 bg-primary/8 p-4"
+              >
+                <h2 className="text-base font-black">{offer.title}</h2>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  خصم {offer.discount_percentage}%{" "}
+                  {offer.product_id ? "على الصنف المحدد" : "على الأصناف المؤهلة"} — يُطبّق تلقائيًا
+                  ولا يشمل الإضافات.
+                </p>
+                {offerProduct && (
+                  <button
+                    disabled={!isAcceptingOrders}
+                    onClick={() => selectProduct(offerProduct)}
+                    className="mt-3 min-h-11 rounded-xl border border-primary/30 bg-surface px-4 py-2 text-sm font-bold text-primary"
+                  >
+                    <bdi dir="auto">{offerProduct.name}</bdi> ·{" "}
+                    <bdi dir="ltr">{formatCurrency(offerProduct.price, currency)}</bdi> — إضافة
+                  </button>
+                )}
+              </article>
+            );
+          })}
+        </section>
+      )}
 
       {!isAcceptingOrders && (
-        <div className="bg-destructive/10 text-destructive p-3 text-center text-sm font-bold mx-4 mt-4 rounded-xl">
-          {isTemporarilyPaused && settings?.pauseReason
-            ? settings.pauseReason
-            : "عذراً، المطعم لا يستقبل طلبات في الوقت الحالي."}
+        <div className="mx-4 mt-3 max-w-6xl rounded-xl bg-destructive/10 p-3 text-center text-sm font-bold text-destructive lg:mx-auto">
+          {orderStatus.label}
         </div>
       )}
       {reorderNotice && (
-        <div className="mx-4 mt-4 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800">
+        <div className="mx-4 mt-3 max-w-6xl rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800 lg:mx-auto">
           {reorderNotice}
         </div>
       )}
@@ -395,11 +473,16 @@ function MenuPage() {
         categories={mappedCategories}
       />
 
-      <main key={activeCategory} className="animate-rise-in space-y-3 px-4 pt-4">
+      <main
+        id="menu-products"
+        key={activeCategory}
+        className={`animate-rise-in mx-auto grid max-w-6xl gap-3 px-4 pt-4 sm:grid-cols-2 lg:grid-cols-3 ${count > 0 ? "pb-28" : "pb-6"}`}
+      >
         <h2 className="sr-only">{mappedCategories.find((c) => c.id === activeCategory)?.name}</h2>
         {visibleItems.map((item) => (
           <button
             key={item.id}
+            id={`product-${item.id}`}
             type="button"
             onClick={() => {
               try {
@@ -411,7 +494,8 @@ function MenuPage() {
               }
             }}
             disabled={!isAcceptingOrders}
-            className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-3xl bg-surface p-3 text-right transition-all duration-200 hover:bg-surface-strong ${!isAcceptingOrders ? "opacity-50 cursor-not-allowed" : "active:scale-[0.99]"}`}
+            aria-label={`${item.name}، ${formatCurrency(item.price, currency)}، ${item.groups.length ? "اختيار الخيارات" : "إضافة إلى السلة"}`}
+            className={`grid min-h-32 w-full grid-cols-[minmax(0,1fr)_6.75rem] items-center gap-3 rounded-2xl border bg-surface p-3 text-right transition-colors hover:bg-surface-strong ${!isAcceptingOrders ? "cursor-not-allowed opacity-50" : "active:bg-surface-strong"}`}
           >
             <div className="min-w-0">
               {item.tag && (
@@ -419,28 +503,34 @@ function MenuPage() {
                   {item.tag}
                 </span>
               )}
-              <h3 className="truncate text-base font-extrabold">{item.name}</h3>
-              <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
-                {item.description}
-              </p>
-              <p className="mt-2 text-sm font-extrabold text-primary tabular-nums">
-                {formatCurrency(item.price, currency)}
+              <h3 className="line-clamp-2 text-base font-extrabold leading-6">
+                <bdi dir="auto">{item.name}</bdi>
+              </h3>
+              {item.description?.trim() && (
+                <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                  {item.description}
+                </p>
+              )}
+              <p className="mt-2 text-base font-black text-primary tabular-nums">
+                <bdi dir="ltr">{formatCurrency(item.price, currency)}</bdi>
               </p>
             </div>
-            <div className="relative shrink-0">
-              <img
-                src={item.image}
-                alt={item.name}
-                width={800}
-                height={800}
-                loading="lazy"
-                onError={(event) => {
-                  event.currentTarget.onerror = null;
-                  event.currentTarget.src = "/demo-grilled-fish.svg";
-                }}
-                className="h-24 w-24 rounded-2xl object-cover"
-              />
-              <span className="gradient-primary absolute -bottom-1 -left-1 grid h-8 w-8 place-items-center rounded-full text-primary-foreground shadow-glow">
+            <div className="relative grid aspect-square w-full shrink-0 place-items-center overflow-hidden rounded-xl bg-muted">
+              <UtensilsCrossed className="h-7 w-7 text-muted-foreground/55" aria-hidden="true" />
+              {item.image && (
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  width={800}
+                  height={800}
+                  loading="lazy"
+                  onError={(event) => {
+                    event.currentTarget.hidden = true;
+                  }}
+                  className="absolute inset-0 h-full w-full object-cover"
+                />
+              )}
+              <span className="absolute bottom-1 left-1 grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-sm">
                 <Plus className="h-4 w-4" />
               </span>
             </div>

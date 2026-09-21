@@ -13,7 +13,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
   const hasHours = working_hours && working_hours.length > 0;
 
   return (
-    <footer className="mt-8 mb-8 mx-4 bg-surface rounded-3xl p-6 space-y-6">
+    <footer className="mx-4 mt-8 mb-8 max-w-6xl space-y-6 rounded-2xl border bg-surface p-5 sm:mx-auto sm:p-6">
       <a
         href={`/s/${encodeURIComponent(store.slug)}/loyalty`}
         className="block rounded-2xl bg-primary p-4 text-center font-bold text-primary-foreground"
@@ -53,6 +53,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
                 href={social_links.instagram}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="انستقرام"
                 className="p-3 bg-surface-strong rounded-2xl text-foreground hover:bg-primary hover:text-white transition-colors"
               >
                 <Instagram className="w-6 h-6" />
@@ -63,6 +64,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
                 href={social_links.facebook}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="فيسبوك"
                 className="p-3 bg-surface-strong rounded-2xl text-foreground hover:bg-primary hover:text-white transition-colors"
               >
                 <Facebook className="w-6 h-6" />
@@ -73,6 +75,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
                 href={social_links.tiktok}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="تيك توك"
                 className="p-3 bg-surface-strong rounded-2xl text-foreground hover:bg-primary hover:text-white transition-colors flex items-center justify-center font-bold"
               >
                 <svg
@@ -91,6 +94,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
                 href={social_links.map}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="موقع المطعم على الخريطة"
                 className="p-3 bg-surface-strong rounded-2xl text-foreground hover:bg-primary hover:text-white transition-colors"
               >
                 <MapPin className="w-6 h-6" />
@@ -101,6 +105,7 @@ export function StoreFooter({ store }: { store: StoreProfile | null }) {
                 href={`https://wa.me/${store.phone_whatsapp.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
+                aria-label="التواصل عبر واتساب"
                 className="p-3 bg-surface-strong rounded-2xl text-foreground hover:bg-[#25D366] hover:text-white transition-colors"
               >
                 <MessageCircle className="w-6 h-6" />

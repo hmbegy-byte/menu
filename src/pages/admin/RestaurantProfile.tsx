@@ -255,7 +255,7 @@ export default function RestaurantProfile({
             value={formData.bio}
             onChange={handleChange}
             className="w-full border border-gray-300 rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-purple-500 h-24 resize-none"
-            placeholder="مثال: أفضل مأكولات بحرية طازجة في المدينة..."
+            placeholder="مثال: وصف مختصر يعرّف العميل بالمطعم..."
           />
         </div>
 

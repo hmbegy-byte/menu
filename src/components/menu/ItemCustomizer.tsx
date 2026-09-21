@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Check, ChevronLeft, Minus, Plus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronLeft, Minus, Plus, UtensilsCrossed, X } from "lucide-react";
 import { type MenuItem } from "../../lib/menu-data";
 import { formatCurrency } from "../../lib/currency";
 
@@ -19,6 +19,7 @@ type Props = {
 export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props) {
   const [step, setStep] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>(() => {
     const initial: Record<string, string[]> = {};
     for (const group of item.groups) {
@@ -30,10 +31,16 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [onClose]);
 
   const group = item.groups[step]!;
   const isLast = step === item.groups.length - 1;
@@ -86,19 +93,26 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
         role="dialog"
         aria-modal="true"
         aria-label={item.name}
-        className="animate-sheet-up relative flex max-h-[94vh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-popover shadow-float"
+        className="animate-sheet-up relative flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-popover shadow-float sm:max-h-[94vh] sm:rounded-3xl"
       >
-        <div className="relative h-44 shrink-0">
-          <img
-            src={item.image}
-            alt={item.name}
-            width={800}
-            height={800}
-            loading="lazy"
-            className="h-full w-full object-cover"
-          />
+        <div className="relative grid h-40 shrink-0 place-items-center overflow-hidden bg-muted sm:h-48">
+          <UtensilsCrossed className="h-10 w-10 text-muted-foreground/45" aria-hidden="true" />
+          {item.image && (
+            <img
+              src={item.image}
+              alt={item.name}
+              width={800}
+              height={800}
+              loading="lazy"
+              onError={(event) => {
+                event.currentTarget.hidden = true;
+              }}
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
           <div className="fade-mask-bottom absolute inset-0" />
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="إغلاق"
@@ -107,8 +121,12 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
             <X className="h-4 w-4" />
           </button>
           <div className="absolute bottom-3 right-4 left-4">
-            <h2 className="truncate text-xl font-extrabold">{item.name}</h2>
-            <p className="line-clamp-1 text-xs text-muted-foreground">{item.description}</p>
+            <h2 className="line-clamp-2 text-xl font-extrabold">
+              <bdi dir="auto">{item.name}</bdi>
+            </h2>
+            {item.description?.trim() && (
+              <p className="line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+            )}
           </div>
         </div>
 
@@ -123,7 +141,10 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
           ))}
         </div>
 
-        <div key={group.id} className="animate-rise-in flex-1 overflow-y-auto px-4 pt-4 pb-5">
+        <div
+          key={group.id}
+          className="animate-rise-in flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-5"
+        >
           <p className="text-[11px] font-bold text-primary">
             الخطوة {step + 1} من {item.groups.length}
           </p>
@@ -158,7 +179,9 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
                         <Check className="animate-pop-in h-3.5 w-3.5 text-primary-foreground" />
                       )}
                     </span>
-                    <span className="min-w-0 truncate text-sm font-bold">{opt.name}</span>
+                    <span className="min-w-0 text-sm font-bold">
+                      <bdi dir="auto">{opt.name}</bdi>
+                    </span>
                     <span
                       className={`shrink-0 rounded-full px-2 py-1 text-[11px] font-extrabold ${
                         opt.price === 0
@@ -181,7 +204,7 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
                 type="button"
                 aria-label="زيادة"
                 onClick={() => setQuantity((q) => q + 1)}
-                className="grid h-8 w-8 place-items-center rounded-full bg-surface-strong"
+                className="grid h-10 w-10 place-items-center rounded-full bg-surface-strong"
               >
                 <Plus className="h-4 w-4" />
               </button>
@@ -190,7 +213,7 @@ export function ItemCustomizer({ item, onClose, onAdd, currency = "SAR" }: Props
                 type="button"
                 aria-label="إنقاص"
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="grid h-8 w-8 place-items-center rounded-full bg-surface-strong disabled:opacity-40"
+                className="grid h-10 w-10 place-items-center rounded-full bg-surface-strong disabled:opacity-40"
                 disabled={quantity === 1}
               >
                 <Minus className="h-4 w-4" />

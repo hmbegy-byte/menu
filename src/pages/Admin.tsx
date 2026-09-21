@@ -61,6 +61,7 @@ import ExpensesManager from "./admin/ExpensesManager";
 import ProfitabilityReport from "./admin/ProfitabilityReport";
 import { signOutStore, isAdminUnlocked, lockAdmin } from "../lib/access";
 import AdminGate from "./AdminGate";
+import { requiresOrganizationAccess } from "../lib/adminSectionAccess.mjs";
 
 export default function Admin({ storeSlug }: { storeSlug: string }) {
   const [unlocked, setUnlocked] = useState(() => isAdminUnlocked(storeSlug));
@@ -154,6 +155,8 @@ function AdminContent({ storeSlug }: { storeSlug: string }) {
     { id: "health", label: "حالة التشغيل", icon: Activity },
     { id: "data", label: "البيانات والنسخ", icon: DatabaseBackup },
   ];
+  const organizationAccessRequired =
+    requiresOrganizationAccess(activeTab) && !adminData.organization?.id;
 
   return (
     <div
@@ -300,51 +303,106 @@ function AdminContent({ storeSlug }: { storeSlug: string }) {
       {/* Main Content Area */}
       <main id="admin-content" tabIndex={-1} className="flex-1 min-w-0 p-4 md:p-8">
         <div className="max-w-5xl mx-auto pb-20 md:pb-0">
-          {ADMIN_FEATURES[activeTab] && !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? (
-            <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p>
-          ) : (
-            <>
-              {activeTab === "overview" && (
-                <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
-              )}
-              {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
-              {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
-              {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
-              {activeTab === "campaigns" && <CampaignManager adminData={adminData} />}
-              {activeTab === "operations" && <OperationsSuite adminData={adminData} />}
-              {activeTab === "expenses" && <ExpensesManager adminData={adminData} />}
-              {activeTab === "profitability" && <ProfitabilityReport adminData={adminData} />}
-              {activeTab === "customers" && <CustomersManager adminData={adminData} />}
-              {activeTab === "retention" && <RetentionManager adminData={adminData} />}
-              {activeTab === "categories" && <CategoryManager adminData={adminData} />}
-              {activeTab === "products" && (
-                <ProductManager
-                  store={store}
-                  products={adminData.products}
-                  setProducts={adminData.setProducts}
-                  categories={adminData.categories}
-                  adminData={adminData}
-                />
-              )}
-              {activeTab === "offers" && <OffersManager adminData={adminData} />}
-              {activeTab === "addons" && <AddonsManager adminData={adminData} />}
-              {activeTab === "profile" && <RestaurantProfile adminData={adminData} />}
-              {activeTab === "appearance" && <AppearanceSettings adminData={adminData} />}
-              {activeTab === "settings" && <GeneralSettings adminData={adminData} />}
-              {activeTab === "payment" && <PaymentSettings adminData={adminData} />}
-              {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
-              {activeTab === "branches" && <BranchManager adminData={adminData} />}
-              {activeTab === "team" && <TeamManager adminData={adminData} />}
-              {activeTab === "loyalty" && <LoyaltySettings adminData={adminData} />}
-              {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
-              {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
-              {activeTab === "billing" && <BillingAddons adminData={adminData} />}
-              {activeTab === "health" && <OperationalHealth adminData={adminData} />}
-              {activeTab === "data" && <DataTools adminData={adminData} />}
-            </>
-          )}
+          <AdminSectionBoundary key={activeTab} onBack={() => changeTab("overview")}>
+            {organizationAccessRequired ? (
+              <OrganizationAccessNotice />
+            ) : ADMIN_FEATURES[activeTab] &&
+              !adminData.features.includes(ADMIN_FEATURES[activeTab]) ? (
+              <p className="rounded-xl border p-5">هذه الميزة غير متاحة في الباقة الحالية.</p>
+            ) : (
+              <>
+                {activeTab === "overview" && (
+                  <StoreSettings adminData={adminData} setActiveTab={setActiveTab} />
+                )}
+                {activeTab === "orders" && <OrderHistory store={store} orders={adminData.orders} />}
+                {activeTab === "delivery" && <DeliverySettings adminData={adminData} />}
+                {activeTab === "reports" && <ReportsDashboard adminData={adminData} />}
+                {activeTab === "campaigns" && <CampaignManager adminData={adminData} />}
+                {activeTab === "operations" && <OperationsSuite adminData={adminData} />}
+                {activeTab === "expenses" && <ExpensesManager adminData={adminData} />}
+                {activeTab === "profitability" && <ProfitabilityReport adminData={adminData} />}
+                {activeTab === "customers" && <CustomersManager adminData={adminData} />}
+                {activeTab === "retention" && <RetentionManager adminData={adminData} />}
+                {activeTab === "categories" && <CategoryManager adminData={adminData} />}
+                {activeTab === "products" && (
+                  <ProductManager
+                    store={store}
+                    products={adminData.products}
+                    setProducts={adminData.setProducts}
+                    categories={adminData.categories}
+                    adminData={adminData}
+                  />
+                )}
+                {activeTab === "offers" && <OffersManager adminData={adminData} />}
+                {activeTab === "addons" && <AddonsManager adminData={adminData} />}
+                {activeTab === "profile" && <RestaurantProfile adminData={adminData} />}
+                {activeTab === "appearance" && <AppearanceSettings adminData={adminData} />}
+                {activeTab === "settings" && <GeneralSettings adminData={adminData} />}
+                {activeTab === "payment" && <PaymentSettings adminData={adminData} />}
+                {activeTab === "qrcode" && <QRCodeGenerator store={store} />}
+                {activeTab === "branches" && <BranchManager adminData={adminData} />}
+                {activeTab === "team" && <TeamManager adminData={adminData} />}
+                {activeTab === "loyalty" && <LoyaltySettings adminData={adminData} />}
+                {activeTab === "white-label" && <WhiteLabelSettings adminData={adminData} />}
+                {activeTab === "subscription" && <SubscriptionSettings adminData={adminData} />}
+                {activeTab === "billing" && <BillingAddons adminData={adminData} />}
+                {activeTab === "health" && <OperationalHealth adminData={adminData} />}
+                {activeTab === "data" && <DataTools adminData={adminData} />}
+              </>
+            )}
+          </AdminSectionBoundary>
         </div>
       </main>
     </div>
   );
+}
+
+function OrganizationAccessNotice() {
+  return (
+    <section
+      role="alert"
+      className="rounded-2xl border border-amber-300 bg-amber-50 p-6 text-amber-950"
+    >
+      <h2 className="text-xl font-bold">هذه الصفحة مخصصة لمالك المؤسسة</h2>
+      <p className="mt-2 leading-7">
+        حسابك يستطيع إدارة هذا الفرع، لكنه غير مسجل كمالك أو مدير للمؤسسة. اطلب من مالك المنصة تعيين
+        الحساب كمالك للمطعم؛ لن نمنح صلاحيات المؤسسة تلقائيًا حفاظًا على بيانات بقية الفروع.
+      </p>
+    </section>
+  );
+}
+
+class AdminSectionBoundary extends React.Component<
+  { children: React.ReactNode; onBack: () => void },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  override componentDidCatch(error: Error) {
+    console.error("Admin section failed", error);
+  }
+
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <section
+        role="alert"
+        className="rounded-2xl border border-red-300 bg-red-50 p-6 text-red-900"
+      >
+        <h2 className="text-xl font-bold">تعذر فتح هذا القسم</h2>
+        <p className="mt-2">بقية لوحة الإدارة ما زالت تعمل. عد إلى الرئيسية ثم حاول مرة أخرى.</p>
+        <button
+          type="button"
+          onClick={this.props.onBack}
+          className="mt-4 min-h-11 rounded-xl bg-red-700 px-5 font-bold text-white"
+        >
+          العودة إلى الرئيسية
+        </button>
+      </section>
+    );
+  }
 }
