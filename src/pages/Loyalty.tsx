@@ -8,6 +8,7 @@ import { Button } from "../components/ui/button";
 import type { Session } from "@supabase/supabase-js";
 import { normalizeLoyaltyPhone } from "../lib/loyaltyPhone.mjs";
 import { createDemoLoyaltyCustomer } from "../lib/demoLoyalty.mjs";
+import { isManagedStaffEmail } from "../lib/loyaltySession.mjs";
 import AcceptInvitation from "./AcceptInvitation";
 import type {
   LoyaltyProgram,
@@ -33,6 +34,7 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
   const [refresh, setRefresh] = useState(0);
   const [invitation, setInvitation] = useState("");
   const [staffLogin, setStaffLogin] = useState(false);
+  const managedStaffSession = isManagedStaffEmail(session?.user.email);
   useEffect(() => {
     setInvitation(new URLSearchParams(window.location.search).get("invite") || "");
     setStaffLogin(new URLSearchParams(window.location.search).get("staff") === "1");
@@ -144,6 +146,27 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
       setBusy(false);
     }
   }
+  async function continueWithCustomerGoogleAccount() {
+    setBusy(true);
+    setError("");
+    try {
+      const { error: signOutError } = await supabase.auth.signOut({ scope: "local" });
+      if (signOutError) throw signOutError;
+      setSession(null);
+      setAccount(null);
+      const { error: loginError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/s/${encodeURIComponent(storeSlug)}/loyalty`,
+          queryParams: { prompt: "select_account" },
+        },
+      });
+      if (loginError) throw loginError;
+    } catch {
+      setError("تعذر تبديل الحساب. سجل خروج الموظف ثم حاول المتابعة بحساب Google مجددًا.");
+      setBusy(false);
+    }
+  }
   async function join() {
     if (!consent || !store?.id) return;
     const normalized = normalizeLoyaltyPhone(phone);
@@ -245,6 +268,27 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
               <p className="text-sm text-muted-foreground">
                 لا تحتاج كلمة مرور جديدة أو رسالة جوال.
               </p>
+            </>
+          ) : managedStaffSession ? (
+            <>
+              <div className="space-y-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 text-start">
+                <h2 className="font-bold">أنت داخل بحساب موظف المطعم</h2>
+                <p className="text-sm text-muted-foreground">
+                  حساب الموظف مخصص للإدارة أو المطبخ ولا يمكن استخدامه كحساب ولاء. لحماية بيانات
+                  العملاء، اربط بطاقتك بحساب Google شخصي.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  سيؤدي الاستمرار إلى تسجيل خروج حساب الموظف من هذا المتصفح، ويمكنك تسجيل دخوله
+                  مجددًا لاحقًا من صفحة الإدارة أو المطبخ.
+                </p>
+              </div>
+              <Button
+                onClick={continueWithCustomerGoogleAccount}
+                disabled={busy}
+                className="w-full"
+              >
+                {busy ? "جارٍ تحويل الحساب…" : "المتابعة بحساب Google شخصي"}
+              </Button>
             </>
           ) : !account ? (
             <>
