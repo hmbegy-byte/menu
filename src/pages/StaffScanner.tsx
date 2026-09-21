@@ -6,6 +6,7 @@ import { normalizeLoyaltyPhone } from "../lib/loyaltyPhone.mjs";
 import { adjustDemoLoyaltyBalance, redeemDemoLoyaltyReward } from "../lib/demoLoyalty.mjs";
 import { BrowserQRCodeReader } from "@zxing/browser";
 import { createScanLifecycle } from "../lib/scanLifecycle.mjs";
+import { parseLoyaltyQr } from "../lib/loyaltyQr.mjs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -116,19 +117,12 @@ export default function StaffScannerPage({
     const lifecycle = createScanLifecycle((qrData: string) => {
       void (async () => {
         try {
-          const parsed: unknown = JSON.parse(qrData);
-          if (
-            !parsed ||
-            typeof parsed !== "object" ||
-            !("a" in parsed) ||
-            !("t" in parsed) ||
-            typeof parsed.a !== "string" ||
-            typeof parsed.t !== "string"
-          )
-            throw new Error("رمز QR غير معروف");
+          const parsed = parseLoyaltyQr(qrData);
+          if (!parsed) throw new Error("رمز QR غير معروف");
           if (isMockMode) {
             const customer = readDemoData().loyaltyCustomers.find(
-              (item: LoyaltyCustomer) => item.id === parsed.a && item.qr_token === parsed.t,
+              (item: LoyaltyCustomer) =>
+                item.id === parsed.customerId && item.qr_token === parsed.token,
             );
             if (!customer) throw new Error("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
             if (lifecycle.isActive()) setScannedCustomer(customer);
@@ -136,8 +130,8 @@ export default function StaffScannerPage({
           }
           const { data, error: lookupError } = await supabase.rpc("staff_loyalty_lookup", {
             p_store_id: storeId,
-            p_customer_id: parsed.a,
-            p_token: parsed.t,
+            p_customer_id: parsed.customerId,
+            p_token: parsed.token,
           });
           if (!lifecycle.isActive()) return;
           if (lookupError) throw new Error("تعذر التحقق من الرمز. تحقق من الاتصال وحاول مجددًا.");
@@ -156,10 +150,30 @@ export default function StaffScannerPage({
     // Effects run after the video element is mounted.
     const reader = new BrowserQRCodeReader();
     void reader
-      .decodeFromVideoDevice(undefined, "video-preview", (result) => {
-        if (result) lifecycle.accept(result.getText());
+      .decodeFromConstraints(
+        {
+          audio: false,
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
+        },
+        "video-preview",
+        (result) => {
+          if (result) lifecycle.accept(result.getText());
+        },
+      )
+      .then(async (controls) => {
+        lifecycle.attach(controls);
+        try {
+          await controls.streamVideoConstraintsApply?.({
+            advanced: [{ focusMode: "continuous" } as MediaTrackConstraintSet],
+          });
+        } catch {
+          // Some mobile cameras do not expose focus controls; scanning still works.
+        }
       })
-      .then((controls) => lifecycle.attach(controls))
       .catch((failure) => {
         if (lifecycle.isActive()) {
           setScanError(failure instanceof Error ? failure.message : "تعذر تشغيل الكاميرا");
@@ -332,8 +346,17 @@ export default function StaffScannerPage({
             <CardContent className="flex flex-col items-center">
               {scanning ? (
                 <div className="w-full aspect-square bg-black rounded-lg overflow-hidden relative">
-                  <video id="video-preview" className="w-full h-full object-cover" />
+                  <video
+                    id="video-preview"
+                    className="w-full h-full object-cover"
+                    autoPlay
+                    muted
+                    playsInline
+                  />
                   <div className="absolute inset-0 border-2 border-primary/50 animate-pulse pointer-events-none m-8 rounded-xl" />
+                  <p className="absolute top-3 inset-x-3 rounded-lg bg-black/70 px-3 py-2 text-center text-sm text-white">
+                    ضع الرمز كاملًا داخل الإطار، وقرّب الهاتف حتى يصبح واضحًا
+                  </p>
                   <Button
                     variant="destructive"
                     className="absolute bottom-4 left-1/2 -translate-x-1/2"

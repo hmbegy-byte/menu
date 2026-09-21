@@ -4,6 +4,7 @@ import { readDemoData, writeDemo } from "../lib/storeDefaults";
 import { useStoreData } from "../hooks/useStoreData";
 import { BrandUpdater } from "../components/BrandUpdater";
 import { QRCodeSVG } from "qrcode.react";
+import { encodeLoyaltyQr } from "../lib/loyaltyQr.mjs";
 import { Button } from "../components/ui/button";
 import type { Session } from "@supabase/supabase-js";
 import { normalizeLoyaltyPhone } from "../lib/loyaltyPhone.mjs";
@@ -359,9 +360,10 @@ export default function LoyaltyPage({ storeSlug }: { storeSlug: string }) {
               )}
               <div className="mx-auto w-fit rounded-2xl bg-white p-4">
                 <QRCodeSVG
-                  value={JSON.stringify({ a: account.id, t: account.qr_token })}
-                  size={200}
-                  level="H"
+                  value={encodeLoyaltyQr(account.id, account.qr_token)}
+                  size={256}
+                  level="M"
+                  marginSize={4}
                 />
               </div>
               <p>اعرض هذا الرمز لموظف المطعم لإضافة النقاط أو استبدالها.</p>
