@@ -140,8 +140,9 @@ export default function StaffScannerPage({
             p_token: parsed.t,
           });
           if (!lifecycle.isActive()) return;
-          if (lookupError || data?.length !== 1)
-            throw new Error("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
+          if (lookupError) throw new Error("تعذر التحقق من الرمز. تحقق من الاتصال وحاول مجددًا.");
+          if (!data?.length) throw new Error("رمز QR غير صالح أو غير مرتبط بهذا المطعم.");
+          if (data.length > 1) throw new Error("الرمز مرتبط بأكثر من عضوية؛ تواصل مع الإدارة.");
           setScannedCustomer(data[0]);
         } catch (failure) {
           if (lifecycle.isActive())
@@ -210,8 +211,12 @@ export default function StaffScannerPage({
       p_store_id: store.id,
       p_phone: normalized,
     });
-    if (lookupError || data?.length !== 1)
-      setScanError("لم نجد عضوية واحدة بهذا الرقم. اطلب من العميل عرض رمز بطاقته.");
+    if (lookupError)
+      setScanError("تعذر البحث عن العضوية. تحقق من الاتصال والصلاحية ثم حاول مجددًا.");
+    else if (!data?.length)
+      setScanError("لا توجد عضوية منضمة بهذا الرقم. اطلب من العميل إنشاء عضويته أولًا.");
+    else if (data.length > 1)
+      setScanError("يوجد أكثر من حساب منضم بهذا الرقم. استخدم رمز QR الخاص بالعميل.");
     else setScannedCustomer(data[0]);
   };
 
