@@ -6,26 +6,38 @@ export const lockAdmin = (slug: string) => unlockedAdmins.delete(slug);
 
 const demoKey = (slug: string, role: string) => `demo_access:${slug}:${role}`;
 
+export const normalizeStoreSlug = (value: string) => value.trim().toLowerCase();
+export const normalizeStaffUsername = (value: string) => value.trim().toLowerCase();
+
 export async function signInToStore(
   slug: string,
   email: string,
   password: string,
   allowedRoles: string[],
 ) {
+  const normalizedSlug = normalizeStoreSlug(slug);
+  const normalizedUsername = normalizeStaffUsername(email);
   const client = allowedRoles[0] === "kitchen" ? kitchenSupabase : supabase;
   if (isMockMode) {
-    if (slug !== "demo" || email !== "demo@restaurant.local" || password !== "12345678") {
+    if (
+      normalizedSlug !== "demo" ||
+      normalizedUsername !== "demo@restaurant.local" ||
+      password !== "12345678"
+    ) {
       throw new Error("بيانات الدخول التجريبية غير صحيحة");
     }
     const role = allowedRoles[0];
     if (!role) throw new Error("لم تحدد صلاحية للدخول");
-    sessionStorage.setItem(demoKey(slug, role), "1");
-    if (allowedRoles[0] === "admin") unlockedAdmins.add(slug);
+    sessionStorage.setItem(demoKey(normalizedSlug, role), "1");
+    if (allowedRoles[0] === "admin") unlockedAdmins.add(normalizedSlug);
     return { role };
   }
-  if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(email.toLowerCase()) || !/^[\w-]+$/.test(slug))
+  if (
+    !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(normalizedUsername) ||
+    !/^[a-z0-9][a-z0-9-]*$/.test(normalizedSlug)
+  )
     throw new Error("أدخل اسم المستخدم ومعرّف المطعم الصحيحين، وليس البريد الإلكتروني");
-  const loginEmail = `${email.toLowerCase()}.${slug}@staff.flavor-flow.invalid`;
+  const loginEmail = `${normalizedUsername}.${normalizedSlug}@staff.flavor-flow.invalid`;
   const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
   if (error || !data.user) throw new Error("اسم المستخدم أو كلمة المرور غير صحيحة");
   if (data.user.app_metadata?.["staff_password_pending"])
@@ -34,18 +46,20 @@ export async function signInToStore(
     .from("store_members")
     .select("role, stores!inner(id, slug)")
     .eq("user_id", data.user.id)
-    .eq("stores.slug", slug)
+    .eq("stores.slug", normalizedSlug)
     .maybeSingle();
   if (membershipError || !membership || !allowedRoles.includes(membership.role)) {
     await client.auth.signOut({ scope: "local" });
     throw new Error("لا يملك الحساب صلاحية دخول هذه الصفحة في المطعم المحدد");
   }
-  if (allowedRoles[0] === "admin") unlockedAdmins.add(slug);
+  if (allowedRoles[0] === "admin") unlockedAdmins.add(normalizedSlug);
   return membership;
 }
 
 export async function hasStoreAccess(slug: string, roles: string[], client = supabase) {
-  if (isMockMode) return roles.some((role) => sessionStorage.getItem(demoKey(slug, role)) === "1");
+  const normalizedSlug = normalizeStoreSlug(slug);
+  if (isMockMode)
+    return roles.some((role) => sessionStorage.getItem(demoKey(normalizedSlug, role)) === "1");
   const {
     data: { user },
   } = await client.auth.getUser();
@@ -54,7 +68,7 @@ export async function hasStoreAccess(slug: string, roles: string[], client = sup
     .from("store_members")
     .select("role, stores!inner(slug)")
     .eq("user_id", user.id)
-    .eq("stores.slug", slug)
+    .eq("stores.slug", normalizedSlug)
     .maybeSingle();
   return Boolean(data && roles.includes(data.role));
 }

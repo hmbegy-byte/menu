@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { ChefHat } from "lucide-react";
-import { signInToStore } from "../lib/access";
+import { normalizeStoreSlug, signInToStore } from "../lib/access";
 import { isMockMode } from "../lib/supabase";
 import StaffPasswordSetup from "../components/StaffPasswordSetup";
 
@@ -20,7 +20,8 @@ export default function KitchenGate() {
     setLoading(true);
     setError("");
     try {
-      const result = await signInToStore(form.slug.trim(), form.email.trim(), form.password, [
+      const normalizedSlug = normalizeStoreSlug(form.slug);
+      const result = await signInToStore(normalizedSlug, form.email, form.password, [
         "kitchen",
         "admin",
       ]);
@@ -29,7 +30,7 @@ export default function KitchenGate() {
         setNeedsPassword(true);
         return;
       }
-      navigate({ to: `/kitchen/${form.slug.trim()}` });
+      navigate({ to: `/kitchen/${normalizedSlug}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تسجيل الدخول");
     } finally {

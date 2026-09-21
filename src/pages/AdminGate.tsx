@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
-import { signInToStore } from "../lib/access";
+import { normalizeStoreSlug, signInToStore } from "../lib/access";
 import { isMockMode } from "../lib/supabase";
 import StaffPasswordSetup from "../components/StaffPasswordSetup";
 
@@ -26,16 +26,15 @@ export default function AdminGate({
     setLoading(true);
     setError("");
     try {
-      const result = await signInToStore(form.slug.trim(), form.email.trim(), form.password, [
-        "admin",
-      ]);
+      const normalizedSlug = normalizeStoreSlug(form.slug);
+      const result = await signInToStore(normalizedSlug, form.email, form.password, ["admin"]);
       if ("needsPasswordChange" in result && result.needsPasswordChange) {
         setForm({ ...form, password: "" });
         setNeedsPassword(true);
         return;
       }
       if (onSuccess) onSuccess();
-      else navigate({ to: `/admin/${form.slug.trim()}` });
+      else navigate({ to: `/admin/${normalizedSlug}` });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تسجيل الدخول");
     } finally {
