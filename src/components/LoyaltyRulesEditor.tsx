@@ -151,6 +151,18 @@ export default function LoyaltyRulesEditor({
         يُضاف الرصيد عند اكتمال الطلب لعميل مسجل بنفس الجوال. القواعد النشطة تُجمع معًا؛ حد الطلب
         يُحسب على الإجمالي. الختم لكل طلب لا يعني ختمًا لكل زيارة فعلية.
       </p>
+      {rules.filter((rule) => rule.is_active).length === 0 && (
+        <div
+          role="alert"
+          className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-amber-900"
+        >
+          <p className="font-bold">لا توجد قاعدة كسب نشطة</p>
+          <p className="mt-1 text-sm">
+            تفعيل برنامج الولاء وحده لا يضيف رصيدًا. أضف قاعدة مثل «نقطة لكل ريال» ثم أكمل الطلب من
+            شاشة المطبخ.
+          </p>
+        </div>
+      )}
       <form onSubmit={save} className="grid gap-4 md:grid-cols-2">
         <label>
           نوع الإعداد
