@@ -17,6 +17,17 @@ test("public entry uses HMB Serve defaults without redirecting ordinary visitors
   assert.doesNotMatch(landing, /\["12", "جديد"\]/);
 });
 
+test("the unsupported dark-mode control is removed and legacy preference is cleared", async () => {
+  const [root, appearance] = await Promise.all([
+    read("src/routes/__root.tsx"),
+    read("src/pages/admin/AppearanceSettings.tsx"),
+  ]);
+  assert.doesNotMatch(root, /<ThemeToggle/);
+  assert.match(root, /classList\.remove\("dark"\)/);
+  assert.match(root, /localStorage\.removeItem\("restaurant-ui-theme"\)/);
+  assert.doesNotMatch(appearance, /الوضع الليلي/);
+});
+
 test("unified login derives destination from server membership", async () => {
   const access = await read("src/lib/access.ts");
   assert.match(access, /resolve_staff_login/);

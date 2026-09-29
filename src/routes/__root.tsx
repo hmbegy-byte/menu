@@ -11,7 +11,6 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import ThemeToggle from "../components/ThemeToggle";
 import PwaInstaller from "../components/PwaInstaller";
 import { BrandUpdater } from "../components/BrandUpdater";
 import { fallbackPlatformBrand, readPublicBrand } from "../lib/platformBrand";
@@ -128,10 +127,15 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const platformBrand = Route.useLoaderData();
 
+  useEffect(() => {
+    document.documentElement.classList.remove("dark");
+    document.documentElement.style.colorScheme = "light";
+    localStorage.removeItem("restaurant-ui-theme");
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrandUpdater assets={{ ...fallbackPlatformBrand, ...platformBrand }} />
-      <ThemeToggle />
       <PwaInstaller />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />

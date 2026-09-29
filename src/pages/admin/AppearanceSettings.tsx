@@ -19,7 +19,7 @@ export default function AppearanceSettings({ adminData }: { adminData: AdminView
   const { appearance, store, updateStore, saveStoreSection } = adminData;
   const [formData, setFormData] = useState({
     primaryColor: appearance.primaryColor || "#9333ea",
-    theme: appearance.theme || "light",
+    theme: "light",
     logo_url: store?.logo_url || "",
     cover_url: store?.cover_url || "",
   });
@@ -125,42 +125,6 @@ export default function AppearanceSettings({ adminData }: { adminData: AdminView
                 className="flex-1 max-w-[150px] border border-gray-300 rounded-lg p-2 outline-none focus:ring-2 focus:ring-purple-500 font-mono text-sm"
               />
             </div>
-          </div>
-        </div>
-
-        {/* Theme Settings (Light/Dark - Mocked for future) */}
-        <div>
-          <label className="block text-sm font-bold text-gray-900 mb-4">
-            الوضع الليلي (قريباً)
-          </label>
-          <div className="flex gap-4">
-            <label
-              className={`flex-1 border rounded-xl p-4 flex flex-col items-center cursor-pointer transition-all ${formData.theme === "light" ? "border-purple-600 bg-purple-50" : "border-gray-200 hover:bg-gray-50"}`}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value="light"
-                checked={formData.theme === "light"}
-                onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
-                className="sr-only"
-              />
-              <span className="font-bold text-gray-900">فاتح</span>
-            </label>
-
-            <label
-              className={`flex-1 border rounded-xl p-4 flex flex-col items-center cursor-pointer transition-all ${formData.theme === "dark" ? "border-purple-600 bg-purple-50" : "border-gray-200 hover:bg-gray-50"}`}
-            >
-              <input
-                type="radio"
-                name="theme"
-                value="dark"
-                checked={formData.theme === "dark"}
-                onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
-                className="sr-only"
-              />
-              <span className="font-bold text-gray-900">داكن</span>
-            </label>
           </div>
         </div>
 
