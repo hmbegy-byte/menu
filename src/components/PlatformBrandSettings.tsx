@@ -3,14 +3,14 @@ import { Building2, Save } from "lucide-react";
 import type { PublicBrand } from "../lib/platformBrand";
 
 const emptyBrand: PublicBrand = {
-  brand_name: "Flavor Flow",
-  legal_name: "",
+  brand_name: "HMB Serve",
+  legal_name: "HMB Digital Solutions",
   logo_url: "",
   favicon_url: "",
   meta_title: "",
   meta_description: "",
   og_image_url: "",
-  theme_color: "#2563eb",
+  theme_color: "#0B1F3B",
   pwa_short_name: "",
   support_email: "",
   support_phone: "",

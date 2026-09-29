@@ -1,4 +1,5 @@
 import { isMockMode, supabase, kitchenSupabase } from "./supabase";
+import { resolveCurrentStoreSlug } from "./platformBrand";
 
 const unlockedAdmins = new Set<string>();
 export const isAdminUnlocked = (slug: string) => unlockedAdmins.has(slug);
@@ -9,6 +10,66 @@ const demoKey = (slug: string, role: string) => `demo_access:${slug}:${role}`;
 
 export const normalizeStoreSlug = (value: string) => value.trim().toLowerCase();
 export const normalizeStaffUsername = (value: string) => value.trim().toLowerCase();
+
+export async function signInUnified(slug: string, username: string, password: string) {
+  const normalizedSlug = normalizeStoreSlug(slug);
+  const normalizedUsername = normalizeStaffUsername(username);
+  if (
+    !/^[a-z0-9][a-z0-9._-]{2,31}$/.test(normalizedUsername) ||
+    !/^[a-z0-9][a-z0-9-]{2,62}$/.test(normalizedSlug)
+  )
+    throw new Error("بيانات الدخول غير صحيحة");
+  if (isMockMode) {
+    if (
+      normalizedSlug !== "demo" ||
+      !["demo", "demo@restaurant.local"].includes(normalizedUsername) ||
+      password !== "12345678"
+    )
+      throw new Error("بيانات الدخول غير صحيحة");
+    unlockAdmin(normalizedSlug);
+    return { destination: "admin" as const, slug: normalizedSlug, needsPasswordChange: false };
+  }
+  const { currentSlug } = await resolveCurrentStoreSlug(normalizedSlug);
+  const { data: resolvedLogin } = await supabase.rpc("resolve_staff_login", {
+    p_slug: currentSlug,
+    p_username: normalizedUsername,
+  });
+  if (typeof resolvedLogin !== "string" || !resolvedLogin)
+    throw new Error("بيانات الدخول غير صحيحة");
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: resolvedLogin,
+    password,
+  });
+  if (error || !data.user) throw new Error("بيانات الدخول غير صحيحة");
+  const { data: membership } = await supabase
+    .from("store_members")
+    .select("role, stores!inner(slug)")
+    .eq("user_id", data.user.id)
+    .eq("stores.slug", currentSlug)
+    .maybeSingle();
+  if (!membership) {
+    await supabase.auth.signOut({ scope: "local" });
+    throw new Error("بيانات الدخول غير صحيحة");
+  }
+  const needsPasswordChange = Boolean(data.user.app_metadata?.["staff_password_pending"]);
+  if (membership.role === "kitchen") {
+    await supabase.auth.signOut({ scope: "local" });
+    const kitchenLogin = await kitchenSupabase.auth.signInWithPassword({
+      email: resolvedLogin,
+      password,
+    });
+    if (kitchenLogin.error) throw new Error("بيانات الدخول غير صحيحة");
+    return { destination: "kitchen" as const, slug: currentSlug, needsPasswordChange };
+  }
+  if (["admin", "manager"].includes(membership.role)) {
+    unlockAdmin(currentSlug);
+    return { destination: "admin" as const, slug: currentSlug, needsPasswordChange };
+  }
+  if (membership.role === "cashier")
+    return { destination: "scanner" as const, slug: currentSlug, needsPasswordChange };
+  await supabase.auth.signOut({ scope: "local" });
+  throw new Error("بيانات الدخول غير صحيحة");
+}
 
 export async function signInToStore(
   slug: string,

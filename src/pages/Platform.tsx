@@ -18,6 +18,7 @@ import SubscriptionCollection from "../components/SubscriptionCollection";
 import SupportTickets from "../components/SupportTickets";
 import { subscriptionStatus } from "../lib/subscriptionStatus";
 import PlatformBrandSettings from "../components/PlatformBrandSettings";
+import TrialRequests from "../components/TrialRequests";
 
 export default function Platform() {
   return (
@@ -161,6 +162,7 @@ function PlatformDashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       </header>
       <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
         <PlatformBrandSettings value={data.platformBrand} onSave={data.savePlatformBrand} />
+        <TrialRequests requests={data.trialRequests} onStatus={data.updateTrialStatus} />
         <div className="grid gap-4 md:grid-cols-5">
           {stats.map(({ icon: Icon, label, value }) => (
             <div key={label} className="rounded-2xl border bg-white p-5">

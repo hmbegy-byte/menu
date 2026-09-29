@@ -17,10 +17,10 @@ export type PublicBrand = {
 export const fallbackPlatformBrand: Required<
   Pick<PublicBrand, "brand_name" | "meta_title" | "meta_description" | "pwa_short_name">
 > = {
-  brand_name: "Flavor Flow",
-  meta_title: "Flavor Flow",
-  meta_description: "Restaurant menu and ordering",
-  pwa_short_name: "Flavor Flow",
+  brand_name: "HMB Serve",
+  meta_title: "HMB Serve — تشغيل مطعمك من مكان واحد",
+  meta_description: "منصة عربية لإدارة الطلبات والمطبخ والمنيو والولاء للمطاعم.",
+  pwa_short_name: "HMB Serve",
 };
 
 export async function readPublicBrand(storeSlug?: string): Promise<PublicBrand> {

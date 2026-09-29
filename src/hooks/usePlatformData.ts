@@ -19,6 +19,7 @@ const initialState = {
   plans: Object.values(PLAN_CATALOG) as any[],
   invoices: [] as any[],
   platformBrand: null as PublicBrand | null,
+  trialRequests: [] as any[],
 };
 
 export function usePlatformData(enabled: boolean) {
@@ -41,10 +42,17 @@ export function usePlatformData(enabled: boolean) {
           plans: Object.values(PLAN_CATALOG),
           invoices: demo.invoices || [],
           platformBrand: (demo as any).platformBrand || null,
+          trialRequests: Object.keys(localStorage)
+            .filter((key) => key.startsWith("trial-request:"))
+            .map((key) => ({
+              id: key,
+              status: "new",
+              ...JSON.parse(localStorage.getItem(key) || "{}"),
+            })),
         });
         return;
       }
-      const [organizations, stores, subscriptions, plans, invoices, platformBrand] =
+      const [organizations, stores, subscriptions, plans, invoices, platformBrand, trialRequests] =
         await Promise.all([
           supabase.from("organizations").select("*").order("created_at", { ascending: false }),
           supabase.from("stores").select("*").order("created_at", { ascending: false }),
@@ -52,10 +60,17 @@ export function usePlatformData(enabled: boolean) {
           supabase.from("plans").select("*").eq("is_active", true).order("sort_order"),
           supabase.from("billing_invoices").select("*").order("issued_at", { ascending: false }),
           supabase.from("brand_assets").select("*").eq("is_platform_default", true).maybeSingle(),
+          supabase.from("trial_requests").select("*").order("created_at", { ascending: false }),
         ]);
-      const failed = [organizations, stores, subscriptions, plans, invoices, platformBrand].find(
-        (result) => result.error,
-      );
+      const failed = [
+        organizations,
+        stores,
+        subscriptions,
+        plans,
+        invoices,
+        platformBrand,
+        trialRequests,
+      ].find((result) => result.error);
       if (failed?.error) throw failed.error;
       setState({
         organizations: organizations.data || [],
@@ -64,6 +79,7 @@ export function usePlatformData(enabled: boolean) {
         plans: plans.data || [],
         invoices: invoices.data || [],
         platformBrand: platformBrand.data || null,
+        trialRequests: trialRequests.data || [],
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تحميل لوحة المنصة");
@@ -253,6 +269,21 @@ export function usePlatformData(enabled: boolean) {
     await load();
     return data;
   };
+  const updateTrialStatus = async (id: string, status: string) => {
+    if (isMockMode) {
+      const trialRequests = state.trialRequests.map((item) =>
+        item.id === id ? { ...item, status } : item,
+      );
+      setState((current) => ({ ...current, trialRequests }));
+      return;
+    }
+    const { error: statusError } = await supabase.rpc("update_trial_request_status", {
+      p_id: id,
+      p_status: status,
+    });
+    if (statusError) throw statusError;
+    await load();
+  };
 
   return {
     ...state,
@@ -265,5 +296,6 @@ export function usePlatformData(enabled: boolean) {
     issueInvoice,
     savePlatformBrand,
     changeStoreSlug,
+    updateTrialStatus,
   };
 }
