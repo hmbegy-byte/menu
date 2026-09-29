@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import type { AdminViewData } from "../../lib/adminViewTypes";
 import { Building2, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { unlockAdmin } from "../../lib/access";
 
 const emptyBranch = { branch_name: "", slug: "", phone_whatsapp: "", is_active: true };
 
@@ -55,13 +57,29 @@ export default function BranchManager({ adminData }: { adminData: AdminViewData 
                 </span>
               </div>
               <div className="mt-4 flex gap-2">
+                <Link
+                  to="/admin/$store_slug"
+                  params={{ store_slug: branch.slug }}
+                  onClick={() => unlockAdmin(branch.slug)}
+                  className="flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground"
+                >
+                  إدارة الفرع
+                </Link>
                 <a
                   href={`/s/${branch.slug}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm"
                 >
-                  <ExternalLink size={15} /> فتح
+                  <ExternalLink size={15} /> المنيو
+                </a>
+                <a
+                  href={`/kitchen/${branch.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1 rounded-lg bg-gray-100 px-3 py-2 text-sm"
+                >
+                  <ExternalLink size={15} /> الكيتشن
                 </a>
                 {branch.id !== adminData.store.id && (
                   <button

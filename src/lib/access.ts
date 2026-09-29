@@ -3,6 +3,7 @@ import { isMockMode, supabase, kitchenSupabase } from "./supabase";
 const unlockedAdmins = new Set<string>();
 export const isAdminUnlocked = (slug: string) => unlockedAdmins.has(slug);
 export const lockAdmin = (slug: string) => unlockedAdmins.delete(slug);
+export const unlockAdmin = (slug: string) => unlockedAdmins.add(normalizeStoreSlug(slug));
 
 const demoKey = (slug: string, role: string) => `demo_access:${slug}:${role}`;
 
@@ -70,7 +71,22 @@ export async function hasStoreAccess(slug: string, roles: string[], client = sup
     .eq("user_id", user.id)
     .eq("stores.slug", normalizedSlug)
     .maybeSingle();
-  return Boolean(data && roles.includes(data.role));
+  if (data && roles.includes(data.role)) return true;
+  if (!roles.includes("admin")) return false;
+  const { data: store } = await client
+    .from("stores")
+    .select("organization_id")
+    .eq("slug", normalizedSlug)
+    .maybeSingle();
+  if (!store?.organization_id) return false;
+  const { data: organizationAccess } = await client
+    .from("organization_members")
+    .select("role")
+    .eq("organization_id", store.organization_id)
+    .eq("user_id", user.id)
+    .in("role", ["owner", "admin"])
+    .maybeSingle();
+  return Boolean(organizationAccess);
 }
 
 export async function signOutStore(kitchen = false) {
