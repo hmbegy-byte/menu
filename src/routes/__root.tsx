@@ -13,6 +13,8 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import ThemeToggle from "../components/ThemeToggle";
 import PwaInstaller from "../components/PwaInstaller";
+import { BrandUpdater } from "../components/BrandUpdater";
+import { fallbackPlatformBrand, readPublicBrand } from "../lib/platformBrand";
 
 function NotFoundComponent() {
   return (
@@ -75,28 +77,36 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 }
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
-  head: () => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Flavor Flow" },
-    ],
-    links: [
-      {
-        rel: "stylesheet",
-        href: appCss,
-      },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-      { rel: "manifest", href: "/api/manifest" },
-      { rel: "apple-touch-icon", href: "/favicon.svg" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap",
-      },
-    ],
-  }),
+  loader: () => readPublicBrand(),
+  head: ({ loaderData }) => {
+    const brand = { ...fallbackPlatformBrand, ...(loaderData || {}) };
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: brand.meta_title || brand.brand_name },
+        { name: "description", content: brand.meta_description },
+        { property: "og:title", content: brand.meta_title || brand.brand_name },
+        { property: "og:description", content: brand.meta_description },
+        ...(brand.og_image_url ? [{ property: "og:image", content: brand.og_image_url }] : []),
+      ],
+      links: [
+        {
+          rel: "stylesheet",
+          href: appCss,
+        },
+        { rel: "icon", href: brand.favicon_url || "/favicon.svg" },
+        { rel: "manifest", href: "/api/manifest" },
+        { rel: "apple-touch-icon", href: "/favicon.svg" },
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Cairo:wght@600;700;800;900&family=Tajawal:wght@400;500;700;800&display=swap",
+        },
+      ],
+    };
+  },
 
   shellComponent: RootShell,
   component: RootComponent,
@@ -116,9 +126,11 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const platformBrand = Route.useLoaderData();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <BrandUpdater assets={{ ...fallbackPlatformBrand, ...platformBrand }} />
       <ThemeToggle />
       <PwaInstaller />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}

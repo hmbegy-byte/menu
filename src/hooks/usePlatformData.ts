@@ -10,6 +10,7 @@ import {
   writeDemo,
 } from "../lib/storeDefaults";
 import { isMockMode, supabase } from "../lib/supabase";
+import type { PublicBrand } from "../lib/platformBrand";
 
 const initialState = {
   organizations: [] as any[],
@@ -17,6 +18,7 @@ const initialState = {
   subscriptions: [] as any[],
   plans: Object.values(PLAN_CATALOG) as any[],
   invoices: [] as any[],
+  platformBrand: null as PublicBrand | null,
 };
 
 export function usePlatformData(enabled: boolean) {
@@ -38,17 +40,20 @@ export function usePlatformData(enabled: boolean) {
           subscriptions: demo.platformSubscriptions || [demo.subscription || defaultSubscription],
           plans: Object.values(PLAN_CATALOG),
           invoices: demo.invoices || [],
+          platformBrand: (demo as any).platformBrand || null,
         });
         return;
       }
-      const [organizations, stores, subscriptions, plans, invoices] = await Promise.all([
-        supabase.from("organizations").select("*").order("created_at", { ascending: false }),
-        supabase.from("stores").select("*").order("created_at", { ascending: false }),
-        supabase.from("subscriptions").select("*, plans(*)"),
-        supabase.from("plans").select("*").eq("is_active", true).order("sort_order"),
-        supabase.from("billing_invoices").select("*").order("issued_at", { ascending: false }),
-      ]);
-      const failed = [organizations, stores, subscriptions, plans, invoices].find(
+      const [organizations, stores, subscriptions, plans, invoices, platformBrand] =
+        await Promise.all([
+          supabase.from("organizations").select("*").order("created_at", { ascending: false }),
+          supabase.from("stores").select("*").order("created_at", { ascending: false }),
+          supabase.from("subscriptions").select("*, plans(*)"),
+          supabase.from("plans").select("*").eq("is_active", true).order("sort_order"),
+          supabase.from("billing_invoices").select("*").order("issued_at", { ascending: false }),
+          supabase.from("brand_assets").select("*").eq("is_platform_default", true).maybeSingle(),
+        ]);
+      const failed = [organizations, stores, subscriptions, plans, invoices, platformBrand].find(
         (result) => result.error,
       );
       if (failed?.error) throw failed.error;
@@ -58,6 +63,7 @@ export function usePlatformData(enabled: boolean) {
         subscriptions: subscriptions.data || [],
         plans: plans.data || [],
         invoices: invoices.data || [],
+        platformBrand: platformBrand.data || null,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "تعذر تحميل لوحة المنصة");
@@ -208,6 +214,46 @@ export function usePlatformData(enabled: boolean) {
     await load();
   };
 
+  const savePlatformBrand = async (brand: PublicBrand) => {
+    if (isMockMode) {
+      writeDemo("platformBrand" as any, brand as any);
+      setState((current) => ({ ...current, platformBrand: brand }));
+      return brand;
+    }
+    const { data, error: saveError } = await supabase.rpc("save_platform_brand", {
+      p_brand: brand,
+    });
+    if (saveError) throw saveError;
+    await load();
+    return data;
+  };
+
+  const changeStoreSlug = async (storeId: string, newSlug: string) => {
+    const normalized = newSlug.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9-]{2,62}$/.test(normalized))
+      throw new Error("الرابط يجب أن يتكون من أحرف إنجليزية صغيرة وأرقام وشرطات.");
+    if (isMockMode) {
+      const stores = state.stores.map((store) =>
+        store.id === storeId ? { ...store, slug: normalized } : store,
+      );
+      writeDemo("platformStores", stores);
+      setState((current) => ({ ...current, stores }));
+      return normalized;
+    }
+    const { data, error: changeError } = await supabase.rpc("change_store_slug", {
+      p_store: storeId,
+      p_new_slug: normalized,
+    });
+    if (changeError) {
+      if (/unavailable/i.test(changeError.message))
+        throw new Error("الرابط مستخدم حاليًا أو استُخدم سابقًا لمطعم آخر.");
+      if (/reserved/i.test(changeError.message)) throw new Error("هذا الرابط محجوز للنظام.");
+      throw changeError;
+    }
+    await load();
+    return data;
+  };
+
   return {
     ...state,
     loading,
@@ -217,5 +263,7 @@ export function usePlatformData(enabled: boolean) {
     changePlan,
     createOrganization,
     issueInvoice,
+    savePlatformBrand,
+    changeStoreSlug,
   };
 }

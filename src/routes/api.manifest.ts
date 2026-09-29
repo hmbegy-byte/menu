@@ -1,7 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
-import { supabase } from "../lib/supabase";
 import { safeInstalledStartPath } from "../lib/hostedAppDestination.mjs";
+import {
+  fallbackPlatformBrand,
+  readPublicBrand,
+  resolveCurrentStoreSlug,
+} from "../lib/platformBrand";
 
 export const Route = createFileRoute("/api/manifest")({
   server: {
@@ -13,43 +17,24 @@ export const Route = createFileRoute("/api/manifest")({
           ? new URL(request.headers.get("referer") as string).pathname
           : "";
         const referredStore = referringPath.match(/^\/(?:s|kitchen|admin)\/([^/]+)/)?.[1] || null;
-        const storeSlug = requestedStore || referredStore;
+        const requestedSlug = requestedStore || referredStore;
+        const resolved = requestedSlug
+          ? await resolveCurrentStoreSlug(requestedSlug)
+          : { currentSlug: "", isAlias: false };
+        const storeSlug = resolved.currentSlug || requestedSlug;
         const startUrl =
-          (requestedStore ? `/s/${requestedStore}` : safeInstalledStartPath(referringPath)) ||
+          (requestedStore ? `/s/${storeSlug}` : safeInstalledStartPath(referringPath)) ||
           (storeSlug ? `/s/${storeSlug}` : "/");
 
-        let brandAssets: {
-          brand_name?: string;
-          pwa_short_name?: string;
-          meta_description?: string;
-          theme_color?: string;
-          favicon_url?: string;
-        } | null = null;
-
-        if (storeSlug) {
-          const { data: store } = await supabase
-            .from("stores")
-            .select("id")
-            .eq("slug", storeSlug)
-            .maybeSingle();
-
-          if (store) {
-            const { data: assets } = await supabase
-              .from("brand_assets")
-              .select("*")
-              .eq("store_id", store.id)
-              .maybeSingle();
-
-            if (assets) {
-              brandAssets = assets;
-            }
-          }
-        }
+        const brandAssets = {
+          ...fallbackPlatformBrand,
+          ...(await readPublicBrand(storeSlug || undefined)),
+        };
 
         const manifest = {
-          name: brandAssets?.brand_name || "Flavor Flow",
-          short_name: brandAssets?.pwa_short_name || brandAssets?.brand_name || "Flavor Flow",
-          description: brandAssets?.meta_description || "Restaurant menu and ordering",
+          name: brandAssets.brand_name,
+          short_name: brandAssets.pwa_short_name || brandAssets.brand_name,
+          description: brandAssets.meta_description,
           id: startUrl,
           start_url: startUrl,
           scope: "/",
@@ -69,7 +54,7 @@ export const Route = createFileRoute("/api/manifest")({
         return new Response(JSON.stringify(manifest), {
           headers: {
             "Content-Type": "application/manifest+json",
-            "Cache-Control": "public, max-age=3600",
+            "Cache-Control": "no-store",
           },
         });
       },

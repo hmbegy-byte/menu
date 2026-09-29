@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { fallbackPlatformBrand } from "../lib/platformBrand";
 
 export interface BrandAssets {
   brand_name?: string;
@@ -20,8 +21,27 @@ export function BrandUpdater({
   useEffect(() => {
     if (!assets) return;
 
+    const selectors = [
+      'meta[name="description"]',
+      'meta[property="og:site_name"]',
+      'meta[property="og:title"]',
+      'meta[property="og:description"]',
+      'meta[property="og:image"]',
+      'meta[name="theme-color"]',
+      'link[rel="icon"]',
+      'link[rel="apple-touch-icon"]',
+      'link[rel="manifest"]',
+    ];
+    const previousTitle = document.title;
+    const previous = new Map(
+      selectors.map((selector) => {
+        const element = document.querySelector(selector);
+        return [selector, element ? element.cloneNode(true) : null] as const;
+      }),
+    );
+
     if (assets.meta_title || assets.brand_name) {
-      document.title = assets.meta_title || assets.brand_name || "Flavor Flow";
+      document.title = assets.meta_title || assets.brand_name || fallbackPlatformBrand.brand_name;
     }
 
     const updateTag = (selector: string, attr: string, value?: string, createTag?: string) => {
@@ -69,6 +89,17 @@ export function BrandUpdater({
     const storeSlug = window.location.pathname.match(/^\/s\/([^/]+)/)?.[1];
     const manifestUrl = storeSlug ? `/api/manifest?store=${storeSlug}` : "/api/manifest";
     updateTag('link[rel="manifest"]', "href", manifestUrl, "link");
+
+    return () => {
+      if (!isStore) return;
+      document.title = previousTitle;
+      previous.forEach((snapshot, selector) => {
+        const current = document.querySelector(selector);
+        if (!snapshot) current?.remove();
+        else if (current) current.replaceWith(snapshot.cloneNode(true));
+        else document.head.appendChild(snapshot.cloneNode(true));
+      });
+    };
   }, [assets, isStore]);
 
   return null;

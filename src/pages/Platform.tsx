@@ -17,6 +17,7 @@ import PlatformStaffAccounts from "../components/PlatformStaffAccounts";
 import SubscriptionCollection from "../components/SubscriptionCollection";
 import SupportTickets from "../components/SupportTickets";
 import { subscriptionStatus } from "../lib/subscriptionStatus";
+import PlatformBrandSettings from "../components/PlatformBrandSettings";
 
 export default function Platform() {
   return (
@@ -145,8 +146,10 @@ function PlatformDashboard({ onLogout }: { onLogout: () => Promise<void> }) {
       <header className="border-b bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between p-5">
           <div>
-            <h1 className="text-xl font-bold">مركز إدارة المنصة</h1>
-            <p className="text-sm text-gray-500">White‑Label Restaurant OS</p>
+            <h1 className="text-xl font-bold">
+              {data.platformBrand?.brand_name || "مركز إدارة المنصة"}
+            </h1>
+            <p className="text-sm text-gray-500">مركز إدارة المنصة والمطاعم</p>
           </div>
           <button
             onClick={onLogout}
@@ -157,6 +160,7 @@ function PlatformDashboard({ onLogout }: { onLogout: () => Promise<void> }) {
         </div>
       </header>
       <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+        <PlatformBrandSettings value={data.platformBrand} onSave={data.savePlatformBrand} />
         <div className="grid gap-4 md:grid-cols-5">
           {stats.map(({ icon: Icon, label, value }) => (
             <div key={label} className="rounded-2xl border bg-white p-5">
@@ -390,7 +394,7 @@ function OrganizationRow({
             <SubscriptionCollection organizationId={organization.id} onSaved={data.reload} />
           )}
           {stores.map((store) => (
-            <div key={store.id} className="flex items-center gap-1">
+            <div key={store.id} className="flex flex-wrap items-center gap-1 rounded-lg border p-1">
               <a
                 href={`/admin/${store.slug}`}
                 className="rounded-lg bg-purple-50 p-2 text-purple-700"
@@ -404,6 +408,7 @@ function OrganizationRow({
               >
                 {store.is_active ? "إيقاف" : "تفعيل"}
               </button>
+              <StoreSlugEditor store={store} onSave={data.changeStoreSlug} />
             </div>
           ))}
           <button
@@ -415,5 +420,75 @@ function OrganizationRow({
         </div>
       </td>
     </tr>
+  );
+}
+
+function StoreSlugEditor({
+  store,
+  onSave,
+}: {
+  store: { id: string; slug: string; name: string };
+  onSave: (id: string, slug: string) => Promise<unknown>;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [slug, setSlug] = useState(store.slug);
+  const [message, setMessage] = useState("");
+  if (!editing)
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        className="rounded-lg bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700"
+      >
+        تغيير الرابط
+      </button>
+    );
+  return (
+    <div className="w-full min-w-64 rounded-lg bg-blue-50 p-3">
+      <label className="text-xs font-bold">
+        الرابط المختصر الجديد
+        <input
+          dir="ltr"
+          value={slug}
+          onChange={(event) => setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+          className="mt-1 w-full rounded-lg border bg-white p-2"
+        />
+      </label>
+      <p dir="ltr" className="mt-1 text-xs text-gray-600">
+        {window.location.origin}/s/{slug || "..."}
+      </p>
+      <p className="mt-1 text-xs text-gray-600">
+        ستستمر الروابط القديمة وQR المنشورة في الوصول إلى هذا المطعم. لا يتغير النطاق أو DNS.
+      </p>
+      {message && (
+        <p role="alert" className="mt-2 text-xs font-bold">
+          {message}
+        </p>
+      )}
+      <div className="mt-2 flex gap-2">
+        <button
+          onClick={async () => {
+            setMessage("");
+            try {
+              await onSave(store.id, slug);
+              setEditing(false);
+            } catch (error) {
+              setMessage(error instanceof Error ? error.message : "تعذر تغيير الرابط");
+            }
+          }}
+          className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white"
+        >
+          حفظ الرابط
+        </button>
+        <button
+          onClick={() => {
+            setSlug(store.slug);
+            setEditing(false);
+          }}
+          className="rounded-lg bg-white px-3 py-2 text-xs"
+        >
+          إلغاء
+        </button>
+      </div>
+    </div>
   );
 }

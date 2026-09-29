@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
-export const Route = createFileRoute("/platform-info")({ component: PlatformInfo });
+import { fallbackPlatformBrand, readPublicBrand } from "../lib/platformBrand";
+export const Route = createFileRoute("/platform-info")({
+  loader: () => readPublicBrand(),
+  component: PlatformInfo,
+});
 function PlatformInfo() {
+  const brand = { ...fallbackPlatformBrand, ...Route.useLoaderData() };
   const [plans, setPlans] = useState<
     Array<{
       id: string;
@@ -11,7 +16,7 @@ function PlatformInfo() {
     }>
   >([]);
   const [failed, setFailed] = useState(false);
-  const email = import.meta.env["VITE_PUBLIC_CONTACT_EMAIL"];
+  const email = brand.support_email || import.meta.env["VITE_PUBLIC_CONTACT_EMAIL"];
   useEffect(() => {
     void supabase
       .from("plans")
@@ -27,7 +32,8 @@ function PlatformInfo() {
     <main dir="rtl" className="mx-auto max-w-5xl space-y-8 px-5 py-12">
       <h1 className="text-4xl font-bold">قائمة وطلبات مباشرة بهوية مطعمك</h1>
       <p className="text-xl">
-        Flavor Flow — إطلاق موجه للسعودية. منيو قابل للتخصيص، طلبات وتتبع، وشاشة مطبخ حسب الباقة.
+        {brand.brand_name} — إطلاق موجه للسعودية. منيو قابل للتخصيص، طلبات وتتبع، وشاشة مطبخ حسب
+        الباقة.
       </p>
       <p className="rounded-xl border p-4">
         نطاق الدفع الحالي: نقد أو تحويل بنكي يدوي للمطعم. البطاقات وApple Pay غير متاحة بعد. اشتراك
@@ -55,7 +61,7 @@ function PlatformInfo() {
         {email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? (
           <a
             className="mt-3 inline-block rounded-xl border p-3"
-            href={`mailto:${email}?subject=${encodeURIComponent("استفسار اشتراك Flavor Flow")}`}
+            href={`mailto:${email}?subject=${encodeURIComponent(`استفسار اشتراك ${brand.brand_name}`)}`}
           >
             تواصل لعرض سعر وتحديد الباقة المناسبة
           </a>

@@ -38,7 +38,16 @@ export async function signInToStore(
     !/^[a-z0-9][a-z0-9-]*$/.test(normalizedSlug)
   )
     throw new Error("أدخل اسم المستخدم ومعرّف المطعم الصحيحين، وليس البريد الإلكتروني");
-  const loginEmail = `${normalizedUsername}.${normalizedSlug}@staff.flavor-flow.invalid`;
+  // The visible slug may change, while the managed Auth email intentionally stays
+  // immutable. Resolve it by stable store/account IDs so existing staff credentials
+  // continue to work through both the current slug and historical aliases.
+  const { data: resolvedLogin } = await client.rpc("resolve_staff_login", {
+    p_slug: normalizedSlug,
+    p_username: normalizedUsername,
+  });
+  const loginEmail =
+    (typeof resolvedLogin === "string" && resolvedLogin) ||
+    `${normalizedUsername}.${normalizedSlug}@staff.flavor-flow.invalid`;
   const { data, error } = await client.auth.signInWithPassword({ email: loginEmail, password });
   if (error || !data.user) throw new Error("اسم المستخدم أو كلمة المرور غير صحيحة");
   if (data.user.app_metadata?.["staff_password_pending"])

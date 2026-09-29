@@ -33,6 +33,8 @@ import type {
   CatalogChoice,
   CatalogOption,
 } from "../lib/catalogTypes";
+import StoreSlugRedirect from "../components/StoreSlugRedirect";
+import { readPublicBrand } from "../lib/platformBrand";
 type PublicProduct = Omit<CatalogProduct, "options"> & {
   tag?: string;
   options: Array<
@@ -43,14 +45,43 @@ type PublicProduct = Omit<CatalogProduct, "options"> & {
 };
 
 export const Route = createFileRoute("/s/$store_slug")({
-  head: () => ({
+  loader: ({ params }) => readPublicBrand(params.store_slug),
+  head: ({ loaderData, params }) => ({
     meta: [
+      ...(loaderData?.meta_title || loaderData?.brand_name
+        ? [{ title: loaderData.meta_title || loaderData.brand_name }]
+        : []),
+      ...(loaderData?.meta_description
+        ? [{ name: "description", content: loaderData.meta_description }]
+        : []),
+      ...(loaderData?.meta_title || loaderData?.brand_name
+        ? [{ property: "og:title", content: loaderData.meta_title || loaderData.brand_name }]
+        : []),
+      ...(loaderData?.meta_description
+        ? [{ property: "og:description", content: loaderData.meta_description }]
+        : []),
+      ...(loaderData?.og_image_url
+        ? [{ property: "og:image", content: loaderData.og_image_url }]
+        : []),
       { property: "og:type", content: "restaurant.menu" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [
+      ...(loaderData?.favicon_url ? [{ rel: "icon", href: loaderData.favicon_url }] : []),
+      { rel: "manifest", href: `/api/manifest?store=${encodeURIComponent(params.store_slug)}` },
+    ],
   }),
-  component: MenuPage,
+  component: StorefrontRoute,
 });
+
+function StorefrontRoute() {
+  const { store_slug } = Route.useParams();
+  return (
+    <StoreSlugRedirect slug={store_slug} area="s">
+      <MenuPage />
+    </StoreSlugRedirect>
+  );
+}
 
 function MenuPage() {
   const { store_slug } = Route.useParams();

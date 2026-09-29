@@ -65,7 +65,10 @@ export default function WhiteLabelSettings({ adminData }: { adminData: AdminView
         <h2 className="flex items-center gap-2 text-2xl font-bold">
           <Globe2 /> الهوية والنطاق
         </h2>
-        <p className="mt-1 text-gray-500">اجعل تجربة العميل تحمل اسم المطعم فقط.</p>
+        <p className="mt-1 text-gray-500">
+          اسم المطعم الظاهر وهويته مستقلان عن الرابط المختصر وعن اسم المؤسسة المالكة للمنصة. تعديل
+          الهوية هنا لا ينشئ مطعمًا جديدًا ولا ينقل بياناته.
+        </p>
       </div>
       <section className="rounded-2xl border bg-white p-5">
         <h3 className="mb-4 font-bold">النطاق الخاص</h3>
