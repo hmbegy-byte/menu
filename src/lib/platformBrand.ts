@@ -26,7 +26,14 @@ export const fallbackPlatformBrand: Required<
 export async function readPublicBrand(storeSlug?: string): Promise<PublicBrand> {
   const { data, error } = await supabase.rpc("public_brand", { p_store_slug: storeSlug || null });
   if (error) return {};
-  return (Array.isArray(data) ? data[0] : data) || {};
+  const row = (Array.isArray(data) ? data[0] : data) || {};
+  // PostgreSQL returns nullable columns for unconfigured fields. Do not let those
+  // erase the current safe defaults or a restaurant's own fallback identity.
+  return Object.fromEntries(
+    Object.entries(row).filter(
+      ([, value]) => value !== null && value !== undefined && value !== "",
+    ),
+  ) as PublicBrand;
 }
 
 export async function resolveCurrentStoreSlug(slug: string) {

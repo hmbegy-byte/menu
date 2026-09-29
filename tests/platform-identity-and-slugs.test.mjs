@@ -52,4 +52,6 @@ test("platform and store metadata are resolved before render", () => {
   assert.match(root, /loader: \(\) => readPublicBrand\(\)/);
   assert.match(menu, /loader: \(\{ params \}\) => readPublicBrand\(params\.store_slug\)/);
   assert.match(manifest, /"Cache-Control": "no-store"/);
+  const brand = readFileSync(new URL("../src/lib/platformBrand.ts", import.meta.url), "utf8");
+  assert.match(brand, /value !== null && value !== undefined && value !== ""/);
 });
