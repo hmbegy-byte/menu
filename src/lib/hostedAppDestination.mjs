@@ -1,6 +1,7 @@
 const HOSTED_PLATFORM_HOSTS = new Set([
   "flavor-flow-saudi.onrender.com",
   "flavor-flow-saudi.gtsoes67955.chatgpt.site",
+  "hmb-serve.hmb-serve.workers.dev",
 ]);
 
 export function isHostedPlatformHost(hostname) {

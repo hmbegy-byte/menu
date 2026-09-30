@@ -6,9 +6,10 @@ import {
   safeRememberedStore,
 } from "../src/lib/hostedAppDestination.mjs";
 
-test("installed app recognizes the shared Render host", () => {
+test("installed app recognizes the supported production hosts", () => {
   assert.equal(isHostedPlatformHost("flavor-flow-saudi.onrender.com"), true);
   assert.equal(isHostedPlatformHost("www.flavor-flow-saudi.onrender.com"), true);
+  assert.equal(isHostedPlatformHost("hmb-serve.hmb-serve.workers.dev"), true);
   assert.equal(isHostedPlatformHost("restaurant.example"), false);
 });
 
