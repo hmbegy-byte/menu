@@ -73,6 +73,7 @@ function PlatformClient() {
               required
               type="email"
               dir="ltr"
+              autoComplete="username"
               value={form.email}
               onChange={(event) => setForm({ ...form, email: event.target.value })}
               className="mt-1 w-full rounded-xl border p-3 font-normal"
@@ -84,6 +85,7 @@ function PlatformClient() {
               required
               type="password"
               dir="ltr"
+              autoComplete="current-password"
               value={form.password}
               onChange={(event) => setForm({ ...form, password: event.target.value })}
               className="mt-1 w-full rounded-xl border p-3 font-normal"

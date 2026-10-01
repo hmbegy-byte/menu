@@ -168,15 +168,28 @@ export async function signOutStore(kitchen = false) {
 const platformDemoKey = "demo_access:platform:owner";
 
 export async function signInPlatform(email: string, password: string) {
+  const normalizedEmail = email.trim().toLowerCase();
   if (isMockMode) {
-    if (email !== "owner@platform.local" || password !== "12345678") {
+    if (normalizedEmail !== "owner@platform.local" || password !== "12345678") {
       throw new Error("بيانات دخول مالك المنصة غير صحيحة");
     }
     sessionStorage.setItem(platformDemoKey, "1");
     return true;
   }
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error || !data.user) throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  // A host migration creates a fresh browser origin. Clear only this tab's stale
+  // session before authenticating so an old restaurant/customer token cannot
+  // interfere with the platform-owner check.
+  await supabase.auth.signOut({ scope: "local" });
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: normalizedEmail,
+    password,
+  });
+  if (error || !data.user) {
+    if (error?.message?.toLowerCase().includes("fetch")) {
+      throw new Error("تعذر الاتصال بخدمة الدخول. تحقق من الإنترنت ثم حاول مجددًا");
+    }
+    throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
+  }
   const { data: platformAdmin } = await supabase
     .from("platform_admins")
     .select("user_id")
